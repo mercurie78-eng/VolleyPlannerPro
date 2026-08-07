@@ -9,6 +9,7 @@ import { DEFAULT_SESSION, PRESET_K1, PRESET_K2, SAMPLE_SAVED_SESSION } from './d
 import {
   cloneSession,
   computeSessionTotals,
+  isParallelBlock,
   moveSessionItem,
   toSessionExercise,
   updateSessionAtIndex,
@@ -25,6 +26,7 @@ export default function App() {
 
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([SAMPLE_SAVED_SESSION]);
   const [session, setSession] = useState<SessionItem[]>(() => cloneSession(DEFAULT_SESSION));
+  const [exercises, setExercises] = useState<Exercise[]>(() => cloneSession(INITIAL_EXERCISES));
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [selectedRole, setSelectedRole] = useState('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,7 +44,7 @@ export default function App() {
   const normalizedSearch = searchQuery.trim().toLowerCase();
 
   const filteredExercises = useMemo(() => {
-    return INITIAL_EXERCISES.filter((ex) => {
+    return exercises.filter((ex) => {
       const matchCategory = selectedCategory === 'Tutti' || ex.category === selectedCategory;
       const matchRole =
         selectedRole === 'Tutti' ||
@@ -54,7 +56,7 @@ export default function App() {
         ex.description.toLowerCase().includes(normalizedSearch);
       return matchCategory && matchRole && matchSearch;
     });
-  }, [selectedCategory, selectedRole, normalizedSearch]);
+  }, [exercises, selectedCategory, selectedRole, normalizedSearch]);
 
   const showSaveToast = useCallback(() => {
     setSaveToast(true);
@@ -96,6 +98,23 @@ export default function App() {
     setSession((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
+  const handleRemoveParallelStation = useCallback((blockIndex: number, stationIndex: number) => {
+    setSession((prev) => {
+      const item = prev[blockIndex];
+      if (!item || !isParallelBlock(item)) return prev;
+
+      const newStations = item.stations.filter((_, i) => i !== stationIndex);
+      if (newStations.length === 0) {
+        return prev.filter((_, i) => i !== blockIndex);
+      }
+
+      return updateSessionAtIndex(prev, blockIndex, (block) => {
+        if (!isParallelBlock(block)) return block;
+        return { ...block, stations: newStations };
+      });
+    });
+  }, []);
+
   const handleMoveItem = useCallback((index: number, direction: -1 | 1) => {
     setSession((prev) => moveSessionItem(prev, index, direction));
   }, []);
@@ -110,6 +129,26 @@ export default function App() {
   const handleNotesChange = useCallback((index: number, val: string) => {
     setSession((prev) =>
       updateSessionAtIndex(prev, index, (item) => ({ ...item, notes: val }))
+    );
+  }, []);
+
+  const handleSetsChange = useCallback((index: number, val: string) => {
+    const sets = val === '' ? undefined : parseInt(val, 10) || 0;
+    setSession((prev) =>
+      updateSessionAtIndex(prev, index, (item) => {
+        if ('isParallelBlock' in item) return item;
+        return { ...item, sets };
+      })
+    );
+  }, []);
+
+  const handleRepsChange = useCallback((index: number, val: string) => {
+    const reps = val === '' ? undefined : parseInt(val, 10) || 0;
+    setSession((prev) =>
+      updateSessionAtIndex(prev, index, (item) => {
+        if ('isParallelBlock' in item) return item;
+        return { ...item, reps };
+      })
     );
   }, []);
 
@@ -128,11 +167,26 @@ export default function App() {
     [handleAddExerciseToSession]
   );
 
+  const handleSaveExercise = useCallback((exercise: Exercise) => {
+    setExercises((prev) => {
+      const exists = prev.some((ex) => ex.id === exercise.id);
+      if (exists) {
+        return prev.map((ex) => (ex.id === exercise.id ? exercise : ex));
+      }
+      return [...prev, exercise];
+    });
+  }, []);
+
+  const handleDeleteExercise = useCallback((id: string) => {
+    setExercises((prev) => prev.filter((ex) => ex.id !== id));
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-12">
       <AppHeader
         activeTab={activeTab}
         savedCount={savedSessions.length}
+        exerciseCount={exercises.length}
         onTabChange={setActiveTab}
       />
 
@@ -156,9 +210,12 @@ export default function App() {
             onSave={handleSaveCurrentSession}
             onGeneratePreset={handleGeneratePreset}
             onDurationChange={handleDurationChange}
+            onSetsChange={handleSetsChange}
+            onRepsChange={handleRepsChange}
             onNotesChange={handleNotesChange}
             onMove={handleMoveItem}
             onRemove={handleRemoveItem}
+            onRemoveParallelStation={handleRemoveParallelStation}
             onAddExercise={handleAddExerciseToSession}
             onSearchChange={setSearchQuery}
             onCategoryChange={setSelectedCategory}
@@ -176,7 +233,12 @@ export default function App() {
         )}
 
         {activeTab === 'database' && (
-          <DatabaseTab onAddExercise={handleAddFromDatabase} />
+          <DatabaseTab
+            exercises={exercises}
+            onAddExercise={handleAddFromDatabase}
+            onSaveExercise={handleSaveExercise}
+            onDeleteExercise={handleDeleteExercise}
+          />
         )}
 
         {activeTab === 'print' && (

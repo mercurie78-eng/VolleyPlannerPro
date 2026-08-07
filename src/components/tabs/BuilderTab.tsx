@@ -22,9 +22,12 @@ export interface BuilderTabProps {
   onSave: () => void;
   onGeneratePreset: (type: 'k1' | 'k2') => void;
   onDurationChange: (index: number, value: string) => void;
+  onSetsChange: (index: number, value: string) => void;
+  onRepsChange: (index: number, value: string) => void;
   onNotesChange: (index: number, value: string) => void;
   onMove: (index: number, direction: -1 | 1) => void;
   onRemove: (index: number) => void;
+  onRemoveParallelStation: (blockIndex: number, stationIndex: number) => void;
   onAddExercise: (exercise: Exercise) => void;
   onSearchChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
@@ -49,9 +52,12 @@ export function BuilderTab({
   onSave,
   onGeneratePreset,
   onDurationChange,
+  onSetsChange,
+  onRepsChange,
   onNotesChange,
   onMove,
   onRemove,
+  onRemoveParallelStation,
   onAddExercise,
   onSearchChange,
   onCategoryChange,
@@ -143,9 +149,12 @@ export function BuilderTab({
                 item={item}
                 index={index}
                 onDurationChange={onDurationChange}
+                onSetsChange={onSetsChange}
+                onRepsChange={onRepsChange}
                 onNotesChange={onNotesChange}
                 onMove={onMove}
                 onRemove={onRemove}
+                onRemoveParallelStation={onRemoveParallelStation}
               />
             ))
           )}

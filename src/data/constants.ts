@@ -10,3 +10,5 @@ export const CATEGORIES = [
 ] as const;
 
 export const ROLES = ['Schiacciatori', 'Centrali', 'Alzatori', 'Liberi', 'Opposti'] as const;
+
+export const INTENSITIES = ['Bassa', 'Media', 'Alta', 'Massimale'] as const;

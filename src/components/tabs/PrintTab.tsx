@@ -71,6 +71,15 @@ export function PrintTab({
                     <span>{item.sessionDuration || item.durationMin} MIN</span>
                   </div>
                   <p className="text-xs text-slate-600 mt-0.5">{item.description}</p>
+                  {(item.sets != null || item.reps != null) && (
+                    <p className="text-xs font-semibold text-amber-700 mt-0.5">
+                      {item.sets != null && item.reps != null
+                        ? `${item.sets} serie × ${item.reps} ripetizioni`
+                        : item.sets != null
+                          ? `${item.sets} serie`
+                          : `${item.reps} ripetizioni`}
+                    </p>
+                  )}
                   {item.notes && <p className="text-xs italic text-emerald-700 mt-0.5">Note: {item.notes}</p>}
                 </div>
               )}

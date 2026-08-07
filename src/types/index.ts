@@ -18,6 +18,8 @@ export interface ParallelStation {
 export interface SessionExercise extends Exercise {
   sessionDuration: number;
   notes: string;
+  sets?: number;
+  reps?: number;
 }
 
 export interface ParallelBlock {

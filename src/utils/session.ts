@@ -17,12 +17,20 @@ export function cloneSession<T>(data: T): T {
   return structuredClone(data);
 }
 
-export function toSessionExercise(ex: Exercise, duration?: number, notes = ''): SessionExercise {
+export function toSessionExercise(
+  ex: Exercise,
+  duration?: number,
+  notes = '',
+  sets?: number,
+  reps?: number
+): SessionExercise {
   return {
     ...ex,
     id: nextSessionItemId(`se-${ex.id}`),
     sessionDuration: duration ?? ex.durationMin,
     notes,
+    sets,
+    reps,
   };
 }
 

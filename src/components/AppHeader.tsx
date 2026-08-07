@@ -1,15 +1,15 @@
 import { Clock, Dumbbell, Calendar, Printer } from 'lucide-react';
 import { SESSION_TARGET_MINUTES } from '../data/constants';
-import { INITIAL_EXERCISES } from '../data/exercises';
 import type { TabId } from '../types';
 
 interface AppHeaderProps {
   activeTab: TabId;
   savedCount: number;
+  exerciseCount: number;
   onTabChange: (tab: TabId) => void;
 }
 
-export function AppHeader({ activeTab, savedCount, onTabChange }: AppHeaderProps) {
+export function AppHeader({ activeTab, savedCount, exerciseCount, onTabChange }: AppHeaderProps) {
   const tabClass = (tab: TabId) =>
     `flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
       activeTab === tab
@@ -38,7 +38,7 @@ export function AppHeader({ activeTab, savedCount, onTabChange }: AppHeaderProps
             <Calendar className="w-3.5 h-3.5" /> Archivio ({savedCount})
           </button>
           <button type="button" onClick={() => onTabChange('database')} className={tabClass('database')}>
-            <Dumbbell className="w-3.5 h-3.5" /> Esercizi ({INITIAL_EXERCISES.length})
+            <Dumbbell className="w-3.5 h-3.5" /> Esercizi ({exerciseCount})
           </button>
           <button type="button" onClick={() => onTabChange('print')} className={tabClass('print')}>
             <Printer className="w-3.5 h-3.5" /> Scheda Campo
