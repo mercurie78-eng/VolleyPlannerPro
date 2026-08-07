@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VolleyPlanner PRO</title>
+    <script>
+      (function () {
+        var key = 'volley-planner-theme';
+        var theme = localStorage.getItem(key);
+        document.documentElement.dataset.theme =
+          theme === 'light' || theme === 'dark' ? theme : 'dark';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

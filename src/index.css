@@ -1,3 +1,40 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root,
+[data-theme='dark'] {
+  --theme-page: 2 6 23;
+  --theme-card: 15 23 42;
+  --theme-elevated: 2 6 23;
+  --theme-input: 2 6 23;
+  --theme-muted: 30 41 59;
+  --theme-muted-hover: 51 65 85;
+  --theme-border: 30 41 59;
+  --theme-heading: 255 255 255;
+  --theme-body: 241 245 249;
+  --theme-secondary: 203 213 225;
+  --theme-muted-text: 148 163 184;
+  --theme-subtle: 100 116 139;
+  --theme-overlay: 2 6 23;
+}
+
+[data-theme='light'] {
+  --theme-page: 241 245 249;
+  --theme-card: 255 255 255;
+  --theme-elevated: 248 250 252;
+  --theme-input: 255 255 255;
+  --theme-muted: 226 232 240;
+  --theme-muted-hover: 203 213 225;
+  --theme-border: 226 232 240;
+  --theme-heading: 15 23 42;
+  --theme-body: 30 41 59;
+  --theme-secondary: 71 85 105;
+  --theme-muted-text: 100 116 139;
+  --theme-subtle: 148 163 184;
+  --theme-overlay: 15 23 42;
+}
+
+body {
+  @apply bg-theme-page text-theme-body;
+}

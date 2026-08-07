@@ -24,24 +24,6 @@ npm run dev
 
 Open [http://localhost:8080](http://localhost:8080).
 
-### Corporate npm registry / SSL errors
-
-This project includes a **project-only** `.npmrc` that points to `registry.npmjs.org`, so `npm install` here does not use your global registry (`devs.adbglobal.com`) and avoids `SELF_SIGNED_CERT_IN_CHAIN` for public packages.
-
-If you must use the corporate mirror instead, replace `.npmrc` with one of these options:
-
-```ini
-# Option A — trust your company's CA certificate (recommended)
-cafile=/path/to/your-company-ca.pem
-registry=https://devs.adbglobal.com/nora/npm/
-
-# Option B — disable SSL verification for this project only (less secure)
-strict-ssl=false
-registry=https://devs.adbglobal.com/nora/npm/
-```
-
-These settings apply only inside this folder; your global `~/.npmrc` is unchanged.
-
 ## Scripts
 
 | Command | Description |

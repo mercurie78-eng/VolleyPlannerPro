@@ -1,4 +1,4 @@
-export const SESSION_TARGET_MINUTES = 120;
+export const DEFAULT_SESSION_TARGET_MINUTES = 120;
 
 export const CATEGORIES = [
   'Riscaldamento',
@@ -8,6 +8,8 @@ export const CATEGORIES = [
   'Gioco Globale',
   'Defaticamento',
 ] as const;
+
+export type CategoryName = (typeof CATEGORIES)[number];
 
 export const ROLES = ['Schiacciatori', 'Centrali', 'Alzatori', 'Liberi', 'Opposti'] as const;
 

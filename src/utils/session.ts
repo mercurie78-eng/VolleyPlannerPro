@@ -54,6 +54,50 @@ export function isParallelBlock(item: SessionItem): item is ParallelBlock {
   return 'isParallelBlock' in item && item.isParallelBlock === true;
 }
 
+export function isSessionExercise(item: SessionItem): item is SessionExercise {
+  return !isParallelBlock(item);
+}
+
+export function exerciseFromSessionExercise(item: SessionExercise): Exercise {
+  return {
+    id: item.id,
+    title: item.title,
+    category: item.category,
+    targetRoles: item.targetRoles,
+    durationMin: item.durationMin,
+    intensity: item.intensity,
+    description: item.description,
+    coachingPoints: item.coachingPoints,
+    estimatedJumps: item.estimatedJumps,
+  };
+}
+
+export function suggestExerciseRole(exercise: Pick<Exercise, 'targetRoles'>): string {
+  return exercise.targetRoles.find((role) => role !== 'Tutti') ?? exercise.targetRoles[0] ?? 'Stazione';
+}
+
+export function convertSessionExerciseToParallelBlock(
+  item: SessionExercise,
+  existingRole: string,
+  newStation: ParallelStation,
+  parallelTitle?: string
+): ParallelBlock {
+  return toParallelBlock(
+    parallelTitle ?? `${item.title} / ${newStation.exercise.title}`,
+    item.sessionDuration,
+    item.notes,
+    [
+      {
+        role: existingRole,
+        exercise: exerciseFromSessionExercise(item),
+        sets: item.sets,
+        reps: item.reps,
+      },
+      newStation,
+    ]
+  );
+}
+
 export function computeSessionTotals(items: SessionItem[]) {
   let minutes = 0;
   let jumps = 0;

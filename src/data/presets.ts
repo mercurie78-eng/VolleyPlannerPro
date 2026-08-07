@@ -25,6 +25,7 @@ export const DEFAULT_SESSION: SessionItem[] = [
 export const PRESET_K1: SessionPreset = {
   title: 'Sessione Focalizzata K1 (Cambiopalla & Pliometria)',
   focus: 'Ricezione, Palleggio in sospensione e Attacco rapido',
+  targetMinutes: 120,
   items: [
     toSessionExercise(EX[0], 10),
     toSessionExercise(EX[1], 8),
@@ -42,6 +43,7 @@ export const PRESET_K1: SessionPreset = {
 export const PRESET_K2: SessionPreset = {
   title: 'Sessione Focalizzata K2 (Muro-Difesa & Transizione)',
   focus: 'Lettura muro, Reattività e Transizione rapida',
+  targetMinutes: 120,
   items: [
     toSessionExercise(EX[0], 10),
     toSessionExercise(EX[2], 7),
@@ -61,6 +63,7 @@ export const SAMPLE_SAVED_SESSION: SavedSession = {
   date: '2026-08-04',
   title: 'Test Pliometrico e Cambiopalla K1',
   focus: 'Reattività a terra e attacco in primo tempo',
+  targetMinutes: 120,
   totalMinutes: 120,
   totalJumps: 115,
   items: [

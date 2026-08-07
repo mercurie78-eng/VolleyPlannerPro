@@ -5,27 +5,34 @@ import { SavedTab } from './components/tabs/SavedTab';
 import { DatabaseTab } from './components/tabs/DatabaseTab';
 import { PrintTab } from './components/tabs/PrintTab';
 import { INITIAL_EXERCISES } from './data/exercises';
-import { DEFAULT_SESSION, PRESET_K1, PRESET_K2, SAMPLE_SAVED_SESSION } from './data/presets';
+import { DEFAULT_SESSION_TARGET_MINUTES } from './data/constants';
+import { PRESET_K1, PRESET_K2, SAMPLE_SAVED_SESSION } from './data/presets';
 import {
   cloneSession,
   computeSessionTotals,
+  convertSessionExerciseToParallelBlock,
   isParallelBlock,
+  isSessionExercise,
   moveSessionItem,
+  suggestExerciseRole,
+  toParallelBlock,
   toSessionExercise,
   updateSessionAtIndex,
   withFreshSessionIds,
 } from './utils/session';
-import type { Exercise, SavedSession, SessionItem, TabId } from './types';
+import type { Exercise, ParallelStation, SavedSession, SessionItem, TabId } from './types';
+import { THEME_CLASSES } from './theme/constants';
 
 export default function App() {
   const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [saveToast, setSaveToast] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('builder');
-  const [sessionTitle, setSessionTitle] = useState('Allenamento Integrato con Stazioni in Parallelo');
-  const [sessionFocus, setSessionFocus] = useState('Lavoro a Stazioni Simultanee (K1 + Pliometria)');
+  const [sessionTitle, setSessionTitle] = useState('');
+  const [sessionFocus, setSessionFocus] = useState('');
+  const [sessionTargetMinutes, setSessionTargetMinutes] = useState(DEFAULT_SESSION_TARGET_MINUTES);
 
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([SAMPLE_SAVED_SESSION]);
-  const [session, setSession] = useState<SessionItem[]>(() => cloneSession(DEFAULT_SESSION));
+  const [session, setSession] = useState<SessionItem[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>(() => cloneSession(INITIAL_EXERCISES));
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [selectedRole, setSelectedRole] = useState('Tutti');
@@ -70,19 +77,30 @@ export default function App() {
       date: sessionDate,
       title: sessionTitle || 'Sessione Senza Titolo',
       focus: sessionFocus || 'Nessun focus specificato',
+      targetMinutes: sessionTargetMinutes,
       totalMinutes,
       totalJumps,
       items: cloneSession(session),
     };
     setSavedSessions((prev) => [newSaved, ...prev]);
     showSaveToast();
-  }, [sessionDate, sessionTitle, sessionFocus, totalMinutes, totalJumps, session, showSaveToast]);
+  }, [sessionDate, sessionTitle, sessionFocus, sessionTargetMinutes, totalMinutes, totalJumps, session, showSaveToast]);
 
   const handleLoadSession = useCallback((savedItem: SavedSession) => {
     setSessionTitle(savedItem.title);
     setSessionFocus(savedItem.focus);
     setSessionDate(savedItem.date);
+    setSessionTargetMinutes(savedItem.targetMinutes ?? DEFAULT_SESSION_TARGET_MINUTES);
     setSession(withFreshSessionIds(cloneSession(savedItem.items)));
+    setActiveTab('builder');
+  }, []);
+
+  const handleNewSession = useCallback(() => {
+    setSessionTitle('');
+    setSessionFocus('');
+    setSessionDate(new Date().toISOString().split('T')[0]);
+    setSessionTargetMinutes(DEFAULT_SESSION_TARGET_MINUTES);
+    setSession([]);
     setActiveTab('builder');
   }, []);
 
@@ -93,6 +111,43 @@ export default function App() {
   const handleAddExerciseToSession = useCallback((ex: Exercise) => {
     setSession((prev) => [...prev, toSessionExercise(ex)]);
   }, []);
+
+  const handleAddParallelBlock = useCallback(
+    (parallelTitle: string, sessionDuration: number, notes = '', stations: ParallelStation[] = []) => {
+      setSession((prev) => [...prev, toParallelBlock(parallelTitle, sessionDuration, notes, stations)]);
+    },
+    []
+  );
+
+  const handleAddExerciseToParallelTarget = useCallback(
+    (targetIndex: number, newRole: string, ex: Exercise, existingRole?: string) => {
+      setSession((prev) => {
+        const item = prev[targetIndex];
+        if (!item) return prev;
+
+        if (isParallelBlock(item)) {
+          return updateSessionAtIndex(prev, targetIndex, (block) => {
+            if (!isParallelBlock(block)) return block;
+            return {
+              ...block,
+              stations: [...block.stations, { role: newRole, exercise: ex }],
+            };
+          });
+        }
+
+        if (!isSessionExercise(item)) return prev;
+
+        const parallelBlock = convertSessionExerciseToParallelBlock(
+          item,
+          existingRole?.trim() || suggestExerciseRole(item),
+          { role: newRole, exercise: ex }
+        );
+
+        return prev.map((sessionItem, index) => (index === targetIndex ? parallelBlock : sessionItem));
+      });
+    },
+    []
+  );
 
   const handleRemoveItem = useCallback((index: number) => {
     setSession((prev) => prev.filter((_, i) => i !== index));
@@ -152,10 +207,64 @@ export default function App() {
     );
   }, []);
 
+  const handleParallelStationSetsChange = useCallback(
+    (blockIndex: number, stationIndex: number, val: string) => {
+      const sets = val === '' ? undefined : parseInt(val, 10) || 0;
+      setSession((prev) =>
+        updateSessionAtIndex(prev, blockIndex, (item) => {
+          if (!isParallelBlock(item)) return item;
+          return {
+            ...item,
+            stations: item.stations.map((st, i) =>
+              i === stationIndex ? { ...st, sets } : st
+            ),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handleParallelStationRoleChange = useCallback(
+    (blockIndex: number, stationIndex: number, val: string) => {
+      setSession((prev) =>
+        updateSessionAtIndex(prev, blockIndex, (item) => {
+          if (!isParallelBlock(item)) return item;
+          return {
+            ...item,
+            stations: item.stations.map((st, i) =>
+              i === stationIndex ? { ...st, role: val } : st
+            ),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handleParallelStationRepsChange = useCallback(
+    (blockIndex: number, stationIndex: number, val: string) => {
+      const reps = val === '' ? undefined : parseInt(val, 10) || 0;
+      setSession((prev) =>
+        updateSessionAtIndex(prev, blockIndex, (item) => {
+          if (!isParallelBlock(item)) return item;
+          return {
+            ...item,
+            stations: item.stations.map((st, i) =>
+              i === stationIndex ? { ...st, reps } : st
+            ),
+          };
+        })
+      );
+    },
+    []
+  );
+
   const handleGeneratePreset = useCallback((type: 'k1' | 'k2') => {
     const preset = type === 'k1' ? PRESET_K1 : PRESET_K2;
     setSessionTitle(preset.title);
     setSessionFocus(preset.focus);
+    setSessionTargetMinutes(preset.targetMinutes);
     setSession(withFreshSessionIds(cloneSession(preset.items)));
   }, []);
 
@@ -182,11 +291,12 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-12">
+    <div className={`${THEME_CLASSES.page} font-sans pb-12`}>
       <AppHeader
         activeTab={activeTab}
         savedCount={savedSessions.length}
         exerciseCount={exercises.length}
+        sessionTargetMinutes={sessionTargetMinutes}
         onTabChange={setActiveTab}
       />
 
@@ -196,17 +306,20 @@ export default function App() {
             sessionTitle={sessionTitle}
             sessionFocus={sessionFocus}
             sessionDate={sessionDate}
+            sessionTargetMinutes={sessionTargetMinutes}
             saveToast={saveToast}
             totalMinutes={totalMinutes}
             totalJumps={totalJumps}
             session={session}
             filteredExercises={filteredExercises}
+            exercises={exercises}
             searchQuery={searchQuery}
             selectedCategory={selectedCategory}
             selectedRole={selectedRole}
             onSessionTitleChange={setSessionTitle}
             onSessionFocusChange={setSessionFocus}
             onSessionDateChange={setSessionDate}
+            onSessionTargetMinutesChange={setSessionTargetMinutes}
             onSave={handleSaveCurrentSession}
             onGeneratePreset={handleGeneratePreset}
             onDurationChange={handleDurationChange}
@@ -216,7 +329,13 @@ export default function App() {
             onMove={handleMoveItem}
             onRemove={handleRemoveItem}
             onRemoveParallelStation={handleRemoveParallelStation}
+            onParallelStationSetsChange={handleParallelStationSetsChange}
+            onParallelStationRepsChange={handleParallelStationRepsChange}
+            onParallelStationRoleChange={handleParallelStationRoleChange}
             onAddExercise={handleAddExerciseToSession}
+            onAddParallelBlock={handleAddParallelBlock}
+            onAddExerciseToParallelTarget={handleAddExerciseToParallelTarget}
+            onSaveExercise={handleSaveExercise}
             onSearchChange={setSearchQuery}
             onCategoryChange={setSelectedCategory}
             onRoleChange={setSelectedRole}
@@ -226,7 +345,7 @@ export default function App() {
         {activeTab === 'saved' && (
           <SavedTab
             savedSessions={savedSessions}
-            onNewSession={() => setActiveTab('builder')}
+            onNewSession={handleNewSession}
             onDelete={handleDeleteSaved}
             onLoad={handleLoadSession}
           />
@@ -246,6 +365,7 @@ export default function App() {
             sessionTitle={sessionTitle}
             sessionFocus={sessionFocus}
             sessionDate={sessionDate}
+            sessionTargetMinutes={sessionTargetMinutes}
             totalMinutes={totalMinutes}
             totalJumps={totalJumps}
             session={session}

@@ -13,6 +13,8 @@ export interface Exercise {
 export interface ParallelStation {
   role: string;
   exercise: Exercise;
+  sets?: number;
+  reps?: number;
 }
 
 export interface SessionExercise extends Exercise {
@@ -38,6 +40,7 @@ export interface SavedSession {
   date: string;
   title: string;
   focus: string;
+  targetMinutes: number;
   totalMinutes: number;
   totalJumps: number;
   items: SessionItem[];
@@ -46,6 +49,7 @@ export interface SavedSession {
 export interface SessionPreset {
   title: string;
   focus: string;
+  targetMinutes: number;
   items: SessionItem[];
 }
 

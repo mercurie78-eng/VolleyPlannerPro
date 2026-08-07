@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { CATEGORIES, INTENSITIES, ROLES } from '../data/constants';
+import { CATEGORIES, INTENSITIES } from '../data/constants';
+import { THEME_CLASSES } from '../theme/constants';
+import { RoleMultiSelect } from './RoleMultiSelect';
 import type { Exercise } from '../types';
 
 export interface ExerciseFormModalProps {
@@ -35,20 +37,6 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
     setCoachingText((exercise?.coachingPoints ?? []).join('\n'));
   }, [exercise]);
 
-  const toggleRole = (role: string) => {
-    if (role === 'Tutti') {
-      setForm((prev) => ({ ...prev, targetRoles: ['Tutti'] }));
-      return;
-    }
-    setForm((prev) => {
-      const withoutTutti = prev.targetRoles.filter((r) => r !== 'Tutti');
-      const next = withoutTutti.includes(role)
-        ? withoutTutti.filter((r) => r !== role)
-        : [...withoutTutti, role];
-      return { ...prev, targetRoles: next.length > 0 ? next : ['Tutti'] };
-    });
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) return;
@@ -59,21 +47,20 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
     onSave({ ...form, title: form.title.trim(), coachingPoints });
   };
 
-  const inputClass =
-    'bg-slate-950 border border-slate-700 text-sm text-white rounded-lg px-3 py-2 w-full focus:outline-none focus:border-emerald-500';
-  const labelClass = 'text-xs font-semibold text-slate-400 block mb-1';
+  const inputClass = `${THEME_CLASSES.input} text-sm rounded-lg px-3 py-2 w-full`;
+  const labelClass = 'text-xs font-semibold text-theme-muted-text block mb-1';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
-          <h2 className="text-base font-bold text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay/80 backdrop-blur-sm">
+      <div className={`${THEME_CLASSES.card} border-theme-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-theme-border">
+          <h2 className="text-base font-bold text-theme-heading">
             {isEditing ? 'Modifica Esercizio' : 'Nuovo Esercizio'}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"
+            className="p-1.5 hover:bg-theme-muted-hover rounded-lg text-theme-muted-text hover:text-theme-heading"
             aria-label="Chiudi"
           >
             <X className="w-4 h-4" />
@@ -122,33 +109,14 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
 
           <div>
             <label className={labelClass}>Ruoli target</label>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => toggleRole('Tutti')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
-                  form.targetRoles.includes('Tutti')
-                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                    : 'bg-slate-950 text-slate-400 border-slate-700 hover:border-slate-600'
-                }`}
-              >
-                Tutti
-              </button>
-              {ROLES.map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => toggleRole(role)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
-                    form.targetRoles.includes(role)
-                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
-                      : 'bg-slate-950 text-slate-400 border-slate-700 hover:border-slate-600'
-                  }`}
-                >
-                  {role}
-                </button>
-              ))}
-            </div>
+            <RoleMultiSelect
+              mode="array"
+              includeTutti
+              value={form.targetRoles}
+              onChange={(targetRoles) => setForm((prev) => ({ ...prev, targetRoles }))}
+              placeholder="Seleziona ruoli target..."
+              aria-label="Ruoli target esercizio"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -204,7 +172,7 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-bold rounded-xl transition"
+              className="flex-1 py-2 bg-theme-muted hover:bg-theme-muted-hover text-theme-secondary text-sm font-bold rounded-xl transition"
             >
               Annulla
             </button>

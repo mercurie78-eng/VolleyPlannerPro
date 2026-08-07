@@ -1,6 +1,9 @@
 import { memo } from 'react';
 import { Split, Trash2 } from 'lucide-react';
+import { CategoryBadge } from './CategoryBadge';
 import { ItemControls } from './ItemControls';
+import { RoleMultiSelect } from './RoleMultiSelect';
+import { THEME_CLASSES } from '../theme/constants';
 import { isParallelBlock } from '../utils/session';
 import type { SessionItem } from '../types';
 
@@ -14,7 +17,13 @@ export interface SessionTimelineItemProps {
   onMove: (index: number, direction: -1 | 1) => void;
   onRemove: (index: number) => void;
   onRemoveParallelStation: (blockIndex: number, stationIndex: number) => void;
+  onParallelStationSetsChange: (blockIndex: number, stationIndex: number, value: string) => void;
+  onParallelStationRepsChange: (blockIndex: number, stationIndex: number, value: string) => void;
+  onParallelStationRoleChange: (blockIndex: number, stationIndex: number, value: string) => void;
 }
+
+const numberInputClass =
+  'bg-theme-input border border-theme-border text-center font-bold font-mono text-amber-400 rounded py-0.5 focus:outline-none focus:border-emerald-500';
 
 export const SessionTimelineItem = memo(function SessionTimelineItem({
   item,
@@ -26,12 +35,15 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
   onMove,
   onRemove,
   onRemoveParallelStation,
+  onParallelStationSetsChange,
+  onParallelStationRepsChange,
+  onParallelStationRoleChange,
 }: SessionTimelineItemProps) {
   if (isParallelBlock(item)) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-slate-700 transition">
+      <div className={`${THEME_CLASSES.card} rounded-xl p-4 shadow-sm hover:border-theme-muted-hover transition`}>
         <div className="space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div className="flex items-center justify-between border-b border-theme-border pb-2">
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
               <Split className="w-3 h-3" /> STAZIONI IN PARALLELO SIMULTANEE
             </span>
@@ -43,12 +55,26 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
               onRemove={() => onRemove(index)}
             />
           </div>
-          <h4 className="text-sm font-bold text-white">{item.parallelTitle}</h4>
+          <h4 className="text-sm font-bold text-theme-heading">{item.parallelTitle}</h4>
+          {item.stations.length === 0 ? (
+            <p className="text-xs text-theme-muted-text italic bg-theme-elevated border border-dashed border-theme-border rounded-lg p-3">
+              Nessuna stazione. Usa &quot;In parallelo&quot; nel pannello a destra per aggiungere esercizi a questo blocco.
+            </p>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {item.stations.map((st, stationIndex) => (
-              <div key={`${st.role}-${st.exercise.id}`} className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-1">
+              <div key={`${index}-${stationIndex}-${st.exercise.id}`} className="bg-theme-elevated p-2.5 rounded-lg border border-theme-border space-y-1">
                 <div className="flex items-start justify-between gap-1">
-                  <span className="text-[10px] font-bold text-teal-400">{st.role}</span>
+                  <label className="flex-1 min-w-0">
+                    <span className="sr-only">Ruolo stazione</span>
+                    <RoleMultiSelect
+                      compact
+                      value={st.role}
+                      onChange={(val) => onParallelStationRoleChange(index, stationIndex, val)}
+                      placeholder="Ruoli..."
+                      aria-label={`Ruoli per ${st.exercise.title}`}
+                    />
+                  </label>
                   <button
                     type="button"
                     onClick={() => onRemoveParallelStation(index, stationIndex)}
@@ -58,25 +84,48 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
                     <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
-                <p className="text-xs font-bold text-slate-200">{st.exercise.title}</p>
+                <p className="text-xs font-bold text-theme-secondary">{st.exercise.title}</p>
                 <span className="text-[10px] text-purple-400 font-mono block">~{st.exercise.estimatedJumps} salti</span>
+                <div className="flex items-center gap-2 text-[10px] pt-0.5">
+                  <label className="flex items-center gap-1 text-theme-muted-text">
+                    <span className="font-semibold">Serie</span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="—"
+                      value={st.sets ?? ''}
+                      onChange={(e) => onParallelStationSetsChange(index, stationIndex, e.target.value)}
+                      className={`w-10 ${numberInputClass}`}
+                    />
+                  </label>
+                  <label className="flex items-center gap-1 text-theme-muted-text">
+                    <span className="font-semibold">Rip.</span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="—"
+                      value={st.reps ?? ''}
+                      onChange={(e) => onParallelStationRepsChange(index, stationIndex, e.target.value)}
+                      className={`w-10 ${numberInputClass}`}
+                    />
+                  </label>
+                </div>
               </div>
             ))}
           </div>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm hover:border-slate-700 transition">
+    <div className={`${THEME_CLASSES.card} rounded-xl p-4 shadow-sm hover:border-theme-muted-hover transition`}>
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-semibold tracking-wide mr-2">
-              {item.category}
-            </span>
-            <h4 className="text-sm font-bold text-white inline-block">{item.title}</h4>
+            <CategoryBadge category={item.category} className="mr-2 tracking-wide" />
+            <h4 className="text-sm font-bold text-theme-heading inline-block">{item.title}</h4>
           </div>
           <ItemControls
             duration={item.sessionDuration || item.durationMin}
@@ -86,9 +135,9 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
             onRemove={() => onRemove(index)}
           />
         </div>
-        <p className="text-xs text-slate-400 leading-relaxed">{item.description}</p>
+        <p className="text-xs text-theme-muted-text leading-relaxed">{item.description}</p>
         <div className="flex items-center gap-3 text-xs">
-          <label className="flex items-center gap-1.5 text-slate-400">
+          <label className="flex items-center gap-1.5 text-theme-muted-text">
             <span className="font-semibold">Serie</span>
             <input
               type="number"
@@ -96,10 +145,10 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
               placeholder="—"
               value={item.sets ?? ''}
               onChange={(e) => onSetsChange(index, e.target.value)}
-              className="w-12 bg-slate-950 border border-slate-700 text-center font-bold font-mono text-amber-400 rounded py-0.5 focus:outline-none focus:border-slate-600"
+              className={`w-12 ${numberInputClass}`}
             />
           </label>
-          <label className="flex items-center gap-1.5 text-slate-400">
+          <label className="flex items-center gap-1.5 text-theme-muted-text">
             <span className="font-semibold">Ripetizioni</span>
             <input
               type="number"
@@ -107,7 +156,7 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
               placeholder="—"
               value={item.reps ?? ''}
               onChange={(e) => onRepsChange(index, e.target.value)}
-              className="w-12 bg-slate-950 border border-slate-700 text-center font-bold font-mono text-amber-400 rounded py-0.5 focus:outline-none focus:border-slate-600"
+              className={`w-12 ${numberInputClass}`}
             />
           </label>
         </div>
@@ -116,7 +165,7 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
           placeholder="Note personalizzate dell'allenatore..."
           value={item.notes || ''}
           onChange={(e) => onNotesChange(index, e.target.value)}
-          className="bg-slate-950 border border-slate-800 text-xs text-slate-300 rounded-lg px-2.5 py-1 w-full focus:outline-none focus:border-slate-700"
+          className="bg-theme-input border border-theme-border text-xs text-theme-secondary rounded-lg px-2.5 py-1 w-full focus:outline-none focus:border-emerald-500"
         />
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Plus, Trash2, Calendar, FolderOpen } from 'lucide-react';
+import { THEME_CLASSES } from '../../theme/constants';
 import { isParallelBlock } from '../../utils/session';
 import type { SavedSession } from '../../types';
 
@@ -12,12 +13,12 @@ export interface SavedTabProps {
 export function SavedTab({ savedSessions, onNewSession, onDelete, onLoad }: SavedTabProps) {
   return (
     <div className="space-y-6">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className={`${THEME_CLASSES.card} rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4`}>
         <div>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
+          <h2 className="text-base font-bold text-theme-heading flex items-center gap-2">
             <Calendar className="w-5 h-5 text-emerald-400" /> Archivio Allenamenti Salvati
           </h2>
-          <p className="text-xs text-slate-400">Consulta o carica le sedute salvate ordinate per data</p>
+          <p className="text-xs text-theme-muted-text">Consulta o carica le sedute salvate ordinate per data</p>
         </div>
 
         <button
@@ -30,38 +31,38 @@ export function SavedTab({ savedSessions, onNewSession, onDelete, onLoad }: Save
       </div>
 
       {savedSessions.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center text-slate-500 space-y-2">
-          <FolderOpen className="w-10 h-10 mx-auto text-slate-600" />
+        <div className={`${THEME_CLASSES.card} rounded-2xl p-12 text-center text-theme-muted-text space-y-2`}>
+          <FolderOpen className="w-10 h-10 mx-auto text-theme-subtle" />
           <p className="text-sm font-semibold">Nessun allenamento presente in archivio.</p>
-          <p className="text-xs text-slate-600">Crea una nuova scheda nel Planner e clicca su &quot;Salva in Archivio&quot;.</p>
+          <p className="text-xs text-theme-subtle">Crea una nuova scheda nel Planner e clicca su &quot;Salva in Archivio&quot;.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {savedSessions.map((item) => (
-            <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4 hover:border-slate-700 transition">
+            <div key={item.id} className={`${THEME_CLASSES.card} rounded-2xl p-5 flex flex-col justify-between space-y-4 hover:border-theme-muted-hover transition`}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-xs font-bold flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5" /> {item.date}
                   </span>
-                  <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
-                    <span>{item.totalMinutes} min</span>
+                  <div className="flex items-center gap-3 text-xs text-theme-muted-text font-mono">
+                    <span>{item.totalMinutes} / {item.targetMinutes ?? 120} min</span>
                     <span>•</span>
                     <span className="text-purple-400">~{item.totalJumps} salti</span>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-base font-bold text-white">{item.title}</h3>
-                  <p className="text-xs text-slate-400 italic mt-0.5">{item.focus}</p>
+                  <h3 className="text-base font-bold text-theme-heading">{item.title}</h3>
+                  <p className="text-xs text-theme-muted-text italic mt-0.5">{item.focus}</p>
                 </div>
 
-                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Esercitazioni ({item.items.length}):</span>
-                  <ul className="list-disc list-inside space-y-0.5 text-slate-400 max-h-24 overflow-y-auto">
+                <div className="bg-theme-elevated p-3 rounded-xl border border-theme-border text-xs text-theme-secondary space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-theme-subtle block">Esercitazioni ({item.items.length}):</span>
+                  <ul className="list-disc list-inside space-y-0.5 text-theme-muted-text max-h-24 overflow-y-auto">
                     {item.items.map((ex) => (
                       <li key={ex.id} className="truncate">
-                        <span className="text-slate-200 font-semibold">
+                        <span className="text-theme-secondary font-semibold">
                           {isParallelBlock(ex) ? ex.parallelTitle : ex.title}
                         </span>{' '}
                         ({ex.sessionDuration || ('durationMin' in ex ? ex.durationMin : 0)}m)
@@ -71,7 +72,7 @@ export function SavedTab({ savedSessions, onNewSession, onDelete, onLoad }: Save
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
+              <div className="flex items-center justify-between gap-2 border-t border-theme-border pt-3">
                 <button
                   type="button"
                   onClick={() => onDelete(item.id)}

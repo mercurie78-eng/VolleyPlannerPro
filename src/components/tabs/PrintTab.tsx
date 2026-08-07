@@ -1,4 +1,5 @@
 import { Printer } from 'lucide-react';
+import { CategoryBadge } from '../CategoryBadge';
 import { isParallelBlock } from '../../utils/session';
 import type { SessionItem } from '../../types';
 
@@ -6,6 +7,7 @@ export interface PrintTabProps {
   sessionTitle: string;
   sessionFocus: string;
   sessionDate: string;
+  sessionTargetMinutes: number;
   totalMinutes: number;
   totalJumps: number;
   session: SessionItem[];
@@ -15,6 +17,7 @@ export function PrintTab({
   sessionTitle,
   sessionFocus,
   sessionDate,
+  sessionTargetMinutes,
   totalMinutes,
   totalJumps,
   session,
@@ -39,7 +42,7 @@ export function PrintTab({
           </div>
           <div className="text-right text-xs text-slate-600 font-mono">
             <p><strong>Data:</strong> {sessionDate}</p>
-            <p><strong>Durata:</strong> {totalMinutes} Minuti</p>
+            <p><strong>Durata:</strong> {totalMinutes} / {sessionTargetMinutes} min</p>
             <p><strong>Carico Salti:</strong> ~{totalJumps} salti/giocatore</p>
           </div>
         </div>
@@ -60,6 +63,15 @@ export function PrintTab({
                       <div key={`${st.role}-${st.exercise.id}`} className="bg-slate-100 p-2 rounded text-xs">
                         <strong className="block text-slate-900">{st.role}:</strong>
                         <span>{st.exercise.title}</span>
+                        {(st.sets != null || st.reps != null) && (
+                          <span className="block font-semibold text-amber-700 mt-0.5">
+                            {st.sets != null && st.reps != null
+                              ? `${st.sets} serie × ${st.reps} rip.`
+                              : st.sets != null
+                                ? `${st.sets} serie`
+                                : `${st.reps} rip.`}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -67,7 +79,11 @@ export function PrintTab({
               ) : (
                 <div>
                   <div className="flex justify-between font-bold text-xs text-slate-900">
-                    <span>MODULO {idx + 1}: {item.title} ({item.category})</span>
+                    <span>
+                      MODULO {idx + 1}: {item.title} (
+                      <CategoryBadge category={item.category} variant="print" className="inline" />
+                      )
+                    </span>
                     <span>{item.sessionDuration || item.durationMin} MIN</span>
                   </div>
                   <p className="text-xs text-slate-600 mt-0.5">{item.description}</p>
