@@ -5,6 +5,8 @@ import type {
   SessionExercise,
   SessionItem,
 } from '../types';
+import { weightedSessionItemTeamJumps, weightedStationTeamJumps } from './jumps';
+import { TEAM_SIZE } from '../data/constants';
 
 let sessionItemCounter = 0;
 
@@ -26,11 +28,12 @@ export function toSessionExercise(
 ): SessionExercise {
   return {
     ...ex,
+    exerciseId: ex.id,
     id: nextSessionItemId(`se-${ex.id}`),
     sessionDuration: duration ?? ex.durationMin,
     notes,
-    sets,
-    reps,
+    sets: sets ?? ex.sets,
+    reps: reps ?? ex.reps,
   };
 }
 
@@ -60,7 +63,7 @@ export function isSessionExercise(item: SessionItem): item is SessionExercise {
 
 export function exerciseFromSessionExercise(item: SessionExercise): Exercise {
   return {
-    id: item.id,
+    id: item.exerciseId,
     title: item.title,
     category: item.category,
     targetRoles: item.targetRoles,
@@ -68,7 +71,9 @@ export function exerciseFromSessionExercise(item: SessionExercise): Exercise {
     intensity: item.intensity,
     description: item.description,
     coachingPoints: item.coachingPoints,
-    estimatedJumps: item.estimatedJumps,
+    sets: item.sets,
+    reps: item.reps,
+    imageUrl: item.imageUrl ?? null,
   };
 }
 
@@ -100,21 +105,24 @@ export function convertSessionExerciseToParallelBlock(
 
 export function computeSessionTotals(items: SessionItem[]) {
   let minutes = 0;
-  let jumps = 0;
+  let teamJumps = 0;
 
   for (const item of items) {
     if (isParallelBlock(item)) {
       minutes += item.sessionDuration || 0;
       for (const st of item.stations) {
-        jumps += st.exercise.estimatedJumps || 0;
+        teamJumps += weightedStationTeamJumps(st);
       }
     } else {
       minutes += item.sessionDuration || item.durationMin || 0;
-      jumps += item.estimatedJumps || 0;
+      teamJumps += weightedSessionItemTeamJumps(item);
     }
   }
 
-  return { totalMinutes: minutes, totalJumps: jumps };
+  return {
+    totalMinutes: minutes,
+    totalJumps: Math.round(teamJumps / TEAM_SIZE),
+  };
 }
 
 export function updateSessionAtIndex(

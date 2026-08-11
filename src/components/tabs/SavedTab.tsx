@@ -6,11 +6,16 @@ import type { SavedSession } from '../../types';
 export interface SavedTabProps {
   savedSessions: SavedSession[];
   onNewSession: () => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
   onLoad: (session: SavedSession) => void;
 }
 
 export function SavedTab({ savedSessions, onNewSession, onDelete, onLoad }: SavedTabProps) {
+  const handleDelete = async (id: string, title: string) => {
+    if (!window.confirm(`Eliminare "${title}" dall'archivio?`)) return;
+    await onDelete(id);
+  };
+
   return (
     <div className="space-y-6">
       <div className={`${THEME_CLASSES.card} rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4`}>
@@ -75,7 +80,7 @@ export function SavedTab({ savedSessions, onNewSession, onDelete, onLoad }: Save
               <div className="flex items-center justify-between gap-2 border-t border-theme-border pt-3">
                 <button
                   type="button"
-                  onClick={() => onDelete(item.id)}
+                  onClick={() => void handleDelete(item.id, item.title)}
                   className="px-3 py-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1 transition"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Elimina

@@ -1,7 +1,9 @@
 import { memo } from 'react';
 import { Plus, Pencil, Split } from 'lucide-react';
 import { CategoryBadge } from './CategoryBadge';
+import { ExerciseImage } from './ExerciseImage';
 import { THEME_CLASSES } from '../theme/constants';
+import { exerciseJumps } from '../utils/jumps';
 import type { Exercise } from '../types';
 
 export interface ExercisePickerCardProps {
@@ -19,11 +21,12 @@ export const ExercisePickerCard = memo(function ExercisePickerCard({
 }: ExercisePickerCardProps) {
   return (
     <div className="bg-theme-elevated border border-theme-border rounded-xl p-3 hover:border-theme-muted-hover transition flex flex-col justify-between space-y-2">
+      <ExerciseImage exercise={exercise} aspectClass="aspect-[3/2]" className="mb-1" hideIfMissing />
       <div>
         <div className="flex items-center justify-between">
           <CategoryBadge category={exercise.category} variant="text" />
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-purple-400 font-mono">~{exercise.estimatedJumps} salti</span>
+            <span className="text-[10px] text-purple-400 font-mono">~{exerciseJumps(exercise)} salti</span>
             <button
               type="button"
               onClick={() => onEdit(exercise)}

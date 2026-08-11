@@ -2,14 +2,17 @@ import { useState } from 'react';
 import { Plus, Dumbbell, Pencil, Trash2 } from 'lucide-react';
 import { CategoryBadge } from '../CategoryBadge';
 import { ExerciseFormModal } from '../ExerciseFormModal';
+import { ExerciseImage } from '../ExerciseImage';
 import { THEME_CLASSES } from '../../theme/constants';
+import { exerciseJumps } from '../../utils/jumps';
+import type { SaveExerciseOptions } from '../../api/exercises';
 import type { Exercise } from '../../types';
 
 export interface DatabaseTabProps {
   exercises: Exercise[];
   onAddExercise: (exercise: Exercise) => void;
-  onSaveExercise: (exercise: Exercise) => void;
-  onDeleteExercise: (id: string) => void;
+  onSaveExercise: (exercise: Exercise, options?: SaveExerciseOptions) => Promise<void>;
+  onDeleteExercise: (id: string) => Promise<void>;
 }
 
 export function DatabaseTab({
@@ -19,16 +22,26 @@ export function DatabaseTab({
   onDeleteExercise,
 }: DatabaseTabProps) {
   const [formExercise, setFormExercise] = useState<Exercise | 'new' | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const handleDelete = (ex: Exercise) => {
-    if (window.confirm(`Eliminare "${ex.title}" dal database?`)) {
-      onDeleteExercise(ex.id);
+  const handleDelete = async (ex: Exercise) => {
+    if (!window.confirm(`Eliminare "${ex.title}" dal database?`)) return;
+    setActionError(null);
+    try {
+      await onDeleteExercise(ex.id);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Eliminazione non riuscita');
     }
   };
 
-  const handleFormSave = (exercise: Exercise) => {
-    onSaveExercise(exercise);
-    setFormExercise(null);
+  const handleFormSave = async (exercise: Exercise, options?: SaveExerciseOptions) => {
+    setActionError(null);
+    try {
+      await onSaveExercise(exercise, options);
+      setFormExercise(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Salvataggio non riuscito');
+    }
   };
 
   return (
@@ -49,6 +62,12 @@ export function DatabaseTab({
         </div>
       </div>
 
+      {actionError && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+          {actionError}
+        </div>
+      )}
+
       {exercises.length === 0 ? (
         <div className={`p-12 text-center ${THEME_CLASSES.emptyState} rounded-2xl text-sm`}>
           Nessun esercizio nel database. Clicca &quot;Nuovo Esercizio&quot; per iniziare.
@@ -58,9 +77,10 @@ export function DatabaseTab({
           {exercises.map((ex) => (
             <div key={ex.id} className={`${THEME_CLASSES.card} rounded-2xl p-4 flex flex-col justify-between space-y-3`}>
               <div className="space-y-2">
+                <ExerciseImage exercise={ex} aspectClass="aspect-[4/3]" hideIfMissing />
                 <div className="flex items-center justify-between">
                   <CategoryBadge category={ex.category} />
-                  <span className="text-xs font-mono text-purple-400">~{ex.estimatedJumps} salti</span>
+                  <span className="text-xs font-mono text-purple-400">~{exerciseJumps(ex)} salti ({ex.sets}×{ex.reps})</span>
                 </div>
 
                 <h3 className="text-sm font-bold text-theme-heading">{ex.title}</h3>

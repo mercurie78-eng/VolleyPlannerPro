@@ -7,7 +7,9 @@ export interface Exercise {
   intensity: string;
   description: string;
   coachingPoints: string[];
-  estimatedJumps: number;
+  sets: number;
+  reps: number;
+  imageUrl?: string | null;
 }
 
 export interface ParallelStation {
@@ -18,10 +20,10 @@ export interface ParallelStation {
 }
 
 export interface SessionExercise extends Exercise {
+  /** ID dell'esercizio nel catalogo (persistenza allenamenti). */
+  exerciseId: string;
   sessionDuration: number;
   notes: string;
-  sets?: number;
-  reps?: number;
 }
 
 export interface ParallelBlock {

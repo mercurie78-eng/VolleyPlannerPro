@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ImagePlus, Trash2, X } from 'lucide-react';
 import { CATEGORIES, INTENSITIES } from '../data/constants';
 import { THEME_CLASSES } from '../theme/constants';
+import { ExerciseImage } from './ExerciseImage';
 import { RoleMultiSelect } from './RoleMultiSelect';
+import { exerciseJumps } from '../utils/jumps';
+import type { SaveExerciseOptions } from '../api/exercises';
 import type { Exercise } from '../types';
 
 export interface ExerciseFormModalProps {
   exercise: Exercise | null;
-  onSave: (exercise: Exercise) => void;
+  onSave: (exercise: Exercise, options?: SaveExerciseOptions) => Promise<void>;
   onClose: () => void;
 }
 
@@ -21,7 +24,9 @@ function emptyExercise(id: string): Exercise {
     intensity: INTENSITIES[1],
     description: '',
     coachingPoints: [],
-    estimatedJumps: 0,
+    sets: 0,
+    reps: 0,
+    imageUrl: null,
   };
 }
 
@@ -31,24 +36,79 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
   const [coachingText, setCoachingText] = useState(() =>
     (exercise?.coachingPoints ?? []).join('\n')
   );
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     setForm(exercise ?? emptyExercise(`ex-${Date.now()}`));
     setCoachingText((exercise?.coachingPoints ?? []).join('\n'));
+    setPendingImageFile(null);
+    setPreviewUrl(null);
+    setRemoveImage(false);
+    setSaveError(null);
   }, [exercise]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!pendingImageFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(pendingImageFile);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [pendingImageFile]);
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setPendingImageFile(file);
+    setRemoveImage(false);
+  };
+
+  const handleRemoveImage = () => {
+    setPendingImageFile(null);
+    setPreviewUrl(null);
+    setRemoveImage(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim()) return;
+    if (!form.title.trim() || saving) return;
+
     const coachingPoints = coachingText
       .split('\n')
       .map((line) => line.trim())
       .filter(Boolean);
-    onSave({ ...form, title: form.title.trim(), coachingPoints });
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave(
+        {
+          ...form,
+          title: form.title.trim(),
+          coachingPoints,
+          imageUrl: removeImage ? null : form.imageUrl ?? null,
+        },
+        {
+          imageFile: pendingImageFile,
+          removeImage: removeImage && !pendingImageFile,
+        }
+      );
+      onClose();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Salvataggio non riuscito');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inputClass = `${THEME_CLASSES.input} text-sm rounded-lg px-3 py-2 w-full`;
   const labelClass = 'text-xs font-semibold text-theme-muted-text block mb-1';
+  const hasImage = Boolean(previewUrl || (!removeImage && form.imageUrl));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay/80 backdrop-blur-sm">
@@ -68,6 +128,38 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {saveError && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+              {saveError}
+            </div>
+          )}
+
+          <div>
+            <label className={labelClass}>Immagine esercizio</label>
+            <ExerciseImage exercise={form} previewUrl={previewUrl} />
+            <div className="flex flex-wrap gap-2 mt-2">
+              <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-theme-muted hover:bg-theme-muted-hover text-theme-secondary text-xs font-bold rounded-xl cursor-pointer transition">
+                <ImagePlus className="w-3.5 h-3.5" />
+                {hasImage ? 'Sostituisci immagine' : 'Carica immagine'}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="sr-only"
+                  onChange={handleImageChange}
+                />
+              </label>
+              {hasImage && (
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-xl transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Rimuovi
+                </button>
+              )}
+            </div>
+          </div>
+
           <div>
             <label className={labelClass}>Titolo *</label>
             <input
@@ -119,32 +211,49 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
             />
           </div>
 
+          <div>
+            <label className={labelClass}>Durata (min)</label>
+            <input
+              type="number"
+              min={1}
+              value={form.durationMin}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, durationMin: parseInt(e.target.value, 10) || 0 }))
+              }
+              className={inputClass}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>Durata (min)</label>
+              <label className={labelClass}>Serie</label>
               <input
                 type="number"
-                min={1}
-                value={form.durationMin}
+                min={0}
+                value={form.sets}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, durationMin: parseInt(e.target.value, 10) || 0 }))
+                  setForm((prev) => ({ ...prev, sets: parseInt(e.target.value, 10) || 0 }))
                 }
                 className={inputClass}
               />
             </div>
             <div>
-              <label className={labelClass}>Salti stimati</label>
+              <label className={labelClass}>Ripetizioni</label>
               <input
                 type="number"
                 min={0}
-                value={form.estimatedJumps}
+                value={form.reps}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, estimatedJumps: parseInt(e.target.value, 10) || 0 }))
+                  setForm((prev) => ({ ...prev, reps: parseInt(e.target.value, 10) || 0 }))
                 }
                 className={inputClass}
               />
             </div>
           </div>
+
+          <p className="text-xs text-purple-400 font-mono">
+            Salti stimati: {exerciseJumps(form)} ({form.sets} × {form.reps})
+          </p>
 
           <div>
             <label className={labelClass}>Descrizione</label>
@@ -178,9 +287,10 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
             </button>
             <button
               type="submit"
-              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition"
+              disabled={saving}
+              className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white text-sm font-bold rounded-xl transition"
             >
-              {isEditing ? 'Salva Modifiche' : 'Aggiungi Esercizio'}
+              {saving ? 'Salvataggio...' : isEditing ? 'Salva Modifiche' : 'Aggiungi Esercizio'}
             </button>
           </div>
         </form>

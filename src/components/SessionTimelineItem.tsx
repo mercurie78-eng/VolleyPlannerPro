@@ -1,10 +1,13 @@
 import { memo } from 'react';
 import { Split, Trash2 } from 'lucide-react';
 import { CategoryBadge } from './CategoryBadge';
+import { ExerciseImage } from './ExerciseImage';
 import { ItemControls } from './ItemControls';
 import { RoleMultiSelect } from './RoleMultiSelect';
 import { THEME_CLASSES } from '../theme/constants';
 import { isParallelBlock } from '../utils/session';
+import { sessionItemJumps, stationJumps } from '../utils/jumps';
+import { countPlayersForRoleLabel, countPlayersForRoles } from '../utils/roles';
 import type { SessionItem } from '../types';
 
 export interface SessionTimelineItemProps {
@@ -85,7 +88,10 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
                   </button>
                 </div>
                 <p className="text-xs font-bold text-theme-secondary">{st.exercise.title}</p>
-                <span className="text-[10px] text-purple-400 font-mono block">~{st.exercise.estimatedJumps} salti</span>
+                <ExerciseImage exercise={st.exercise} fit="contain" className="max-h-28" hideIfMissing />
+                <span className="text-[10px] text-purple-400 font-mono block">
+                  ~{stationJumps(st)} salti × {countPlayersForRoleLabel(st.role)} gioc.
+                </span>
                 <div className="flex items-center gap-2 text-[10px] pt-0.5">
                   <label className="flex items-center gap-1 text-theme-muted-text">
                     <span className="font-semibold">Serie</span>
@@ -135,15 +141,19 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
             onRemove={() => onRemove(index)}
           />
         </div>
+        <ExerciseImage exercise={item} fit="contain" className="max-h-36" hideIfMissing />
         <p className="text-xs text-theme-muted-text leading-relaxed">{item.description}</p>
         <div className="flex items-center gap-3 text-xs">
+          <span className="text-[10px] text-purple-400 font-mono">
+            ~{sessionItemJumps(item)} salti × {countPlayersForRoles(item.targetRoles)} gioc.
+          </span>
           <label className="flex items-center gap-1.5 text-theme-muted-text">
             <span className="font-semibold">Serie</span>
             <input
               type="number"
               min={0}
               placeholder="—"
-              value={item.sets ?? ''}
+              value={item.sets}
               onChange={(e) => onSetsChange(index, e.target.value)}
               className={`w-12 ${numberInputClass}`}
             />
@@ -154,7 +164,7 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
               type="number"
               min={0}
               placeholder="—"
-              value={item.reps ?? ''}
+              value={item.reps}
               onChange={(e) => onRepsChange(index, e.target.value)}
               className={`w-12 ${numberInputClass}`}
             />

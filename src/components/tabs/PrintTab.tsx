@@ -1,5 +1,6 @@
 import { Printer } from 'lucide-react';
 import { CategoryBadge } from '../CategoryBadge';
+import { ExerciseImage } from '../ExerciseImage';
 import { isParallelBlock } from '../../utils/session';
 import type { SessionItem } from '../../types';
 
@@ -43,7 +44,7 @@ export function PrintTab({
           <div className="text-right text-xs text-slate-600 font-mono">
             <p><strong>Data:</strong> {sessionDate}</p>
             <p><strong>Durata:</strong> {totalMinutes} / {sessionTargetMinutes} min</p>
-            <p><strong>Carico Salti:</strong> ~{totalJumps} salti/giocatore</p>
+            <p><strong>Carico Salti:</strong> ~{totalJumps} salti/giocatore (media squadra pesata per ruolo)</p>
           </div>
         </div>
 
@@ -60,9 +61,15 @@ export function PrintTab({
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {item.stations.map((st) => (
-                      <div key={`${st.role}-${st.exercise.id}`} className="bg-slate-100 p-2 rounded text-xs">
+                      <div key={`${st.role}-${st.exercise.id}`} className="bg-slate-100 p-2 rounded text-xs space-y-1">
                         <strong className="block text-slate-900">{st.role}:</strong>
                         <span>{st.exercise.title}</span>
+                        <ExerciseImage
+                          exercise={st.exercise}
+                          variant="print"
+                          fit="contain"
+                          className="max-h-20"
+                        />
                         {(st.sets != null || st.reps != null) && (
                           <span className="block font-semibold text-amber-700 mt-0.5">
                             {st.sets != null && st.reps != null
@@ -86,6 +93,7 @@ export function PrintTab({
                     </span>
                     <span>{item.sessionDuration || item.durationMin} MIN</span>
                   </div>
+                  <ExerciseImage exercise={item} variant="print" fit="contain" className="max-h-28 mt-1" />
                   <p className="text-xs text-slate-600 mt-0.5">{item.description}</p>
                   {(item.sets != null || item.reps != null) && (
                     <p className="text-xs font-semibold text-amber-700 mt-0.5">

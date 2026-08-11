@@ -103,7 +103,12 @@ export function ParallelBlockFormModal({
         setValidationError('Ogni stazione deve avere esercizio e ruolo compilati.');
         return;
       }
-      completeStations.push({ role: station.role.trim(), exercise });
+      completeStations.push({
+        role: station.role.trim(),
+        exercise,
+        sets: exercise.sets,
+        reps: exercise.reps,
+      });
     }
 
     if (completeStations.length < 2) {

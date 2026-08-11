@@ -4,9 +4,10 @@ import { BuilderTab } from './components/tabs/BuilderTab';
 import { SavedTab } from './components/tabs/SavedTab';
 import { DatabaseTab } from './components/tabs/DatabaseTab';
 import { PrintTab } from './components/tabs/PrintTab';
-import { INITIAL_EXERCISES } from './data/exercises';
 import { DEFAULT_SESSION_TARGET_MINUTES } from './data/constants';
-import { PRESET_K1, PRESET_K2, SAMPLE_SAVED_SESSION } from './data/presets';
+import { buildPresetK1, buildPresetK2 } from './data/presets';
+import { useExercises } from './hooks/useExercises';
+import { useSavedSessions } from './hooks/useSavedSessions';
 import {
   cloneSession,
   computeSessionTotals,
@@ -20,7 +21,9 @@ import {
   updateSessionAtIndex,
   withFreshSessionIds,
 } from './utils/session';
+import { findSavedSessionByIdentity, normalizeSessionTitle } from './utils/savedSession';
 import type { Exercise, ParallelStation, SavedSession, SessionItem, TabId } from './types';
+import type { SaveExerciseOptions } from './api/exercises';
 import { THEME_CLASSES } from './theme/constants';
 
 export default function App() {
@@ -31,9 +34,10 @@ export default function App() {
   const [sessionFocus, setSessionFocus] = useState('');
   const [sessionTargetMinutes, setSessionTargetMinutes] = useState(DEFAULT_SESSION_TARGET_MINUTES);
 
-  const [savedSessions, setSavedSessions] = useState<SavedSession[]>([SAMPLE_SAVED_SESSION]);
+  const { exercises, loading: exercisesLoading, error: exercisesError, saveExercise, deleteExercise, reload: reloadExercises } = useExercises();
+  const { savedSessions, loading: sessionsLoading, error: sessionsError, saveSession, updateSession, deleteSession, reload: reloadSessions } = useSavedSessions();
   const [session, setSession] = useState<SessionItem[]>([]);
-  const [exercises, setExercises] = useState<Exercise[]>(() => cloneSession(INITIAL_EXERCISES));
+  const [loadedSavedSessionId, setLoadedSavedSessionId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [selectedRole, setSelectedRole] = useState('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,20 +75,55 @@ export default function App() {
     toastTimeoutRef.current = setTimeout(() => setSaveToast(false), 3000);
   }, []);
 
-  const handleSaveCurrentSession = useCallback(() => {
-    const newSaved: SavedSession = {
+  const handleSaveCurrentSession = useCallback(async () => {
+    const title = normalizeSessionTitle(sessionTitle);
+    const payload: SavedSession = {
       id: `saved-${Date.now()}`,
       date: sessionDate,
-      title: sessionTitle || 'Sessione Senza Titolo',
+      title,
       focus: sessionFocus || 'Nessun focus specificato',
       targetMinutes: sessionTargetMinutes,
       totalMinutes,
       totalJumps,
       items: cloneSession(session),
     };
-    setSavedSessions((prev) => [newSaved, ...prev]);
+
+    const existing = findSavedSessionByIdentity(
+      savedSessions,
+      title,
+      sessionDate,
+      loadedSavedSessionId
+    );
+
+    if (existing) {
+      const overwrite = window.confirm(
+        `Esiste già un allenamento "${title}" del ${sessionDate}.\n\nVuoi sovrascrivere il salvataggio precedente?`
+      );
+      if (!overwrite) return;
+
+      await updateSession({ ...payload, id: existing.id });
+      setLoadedSavedSessionId(existing.id);
+      showSaveToast();
+      return;
+    }
+
+    const saved = await saveSession(payload);
+    setLoadedSavedSessionId(saved.id);
     showSaveToast();
-  }, [sessionDate, sessionTitle, sessionFocus, sessionTargetMinutes, totalMinutes, totalJumps, session, showSaveToast]);
+  }, [
+    sessionDate,
+    sessionTitle,
+    sessionFocus,
+    sessionTargetMinutes,
+    totalMinutes,
+    totalJumps,
+    session,
+    savedSessions,
+    loadedSavedSessionId,
+    saveSession,
+    updateSession,
+    showSaveToast,
+  ]);
 
   const handleLoadSession = useCallback((savedItem: SavedSession) => {
     setSessionTitle(savedItem.title);
@@ -92,6 +131,7 @@ export default function App() {
     setSessionDate(savedItem.date);
     setSessionTargetMinutes(savedItem.targetMinutes ?? DEFAULT_SESSION_TARGET_MINUTES);
     setSession(withFreshSessionIds(cloneSession(savedItem.items)));
+    setLoadedSavedSessionId(savedItem.id);
     setActiveTab('builder');
   }, []);
 
@@ -101,12 +141,16 @@ export default function App() {
     setSessionDate(new Date().toISOString().split('T')[0]);
     setSessionTargetMinutes(DEFAULT_SESSION_TARGET_MINUTES);
     setSession([]);
+    setLoadedSavedSessionId(null);
     setActiveTab('builder');
   }, []);
 
-  const handleDeleteSaved = useCallback((id: string) => {
-    setSavedSessions((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+  const handleDeleteSaved = useCallback(async (id: string) => {
+    await deleteSession(id);
+    if (loadedSavedSessionId === id) {
+      setLoadedSavedSessionId(null);
+    }
+  }, [deleteSession, loadedSavedSessionId]);
 
   const handleAddExerciseToSession = useCallback((ex: Exercise) => {
     setSession((prev) => [...prev, toSessionExercise(ex)]);
@@ -130,7 +174,7 @@ export default function App() {
             if (!isParallelBlock(block)) return block;
             return {
               ...block,
-              stations: [...block.stations, { role: newRole, exercise: ex }],
+              stations: [...block.stations, { role: newRole, exercise: ex, sets: ex.sets, reps: ex.reps }],
             };
           });
         }
@@ -188,7 +232,7 @@ export default function App() {
   }, []);
 
   const handleSetsChange = useCallback((index: number, val: string) => {
-    const sets = val === '' ? undefined : parseInt(val, 10) || 0;
+    const sets = val === '' ? 0 : parseInt(val, 10) || 0;
     setSession((prev) =>
       updateSessionAtIndex(prev, index, (item) => {
         if ('isParallelBlock' in item) return item;
@@ -198,7 +242,7 @@ export default function App() {
   }, []);
 
   const handleRepsChange = useCallback((index: number, val: string) => {
-    const reps = val === '' ? undefined : parseInt(val, 10) || 0;
+    const reps = val === '' ? 0 : parseInt(val, 10) || 0;
     setSession((prev) =>
       updateSessionAtIndex(prev, index, (item) => {
         if ('isParallelBlock' in item) return item;
@@ -261,12 +305,12 @@ export default function App() {
   );
 
   const handleGeneratePreset = useCallback((type: 'k1' | 'k2') => {
-    const preset = type === 'k1' ? PRESET_K1 : PRESET_K2;
+    const preset = type === 'k1' ? buildPresetK1(exercises) : buildPresetK2(exercises);
     setSessionTitle(preset.title);
     setSessionFocus(preset.focus);
     setSessionTargetMinutes(preset.targetMinutes);
     setSession(withFreshSessionIds(cloneSession(preset.items)));
-  }, []);
+  }, [exercises]);
 
   const handleAddFromDatabase = useCallback(
     (ex: Exercise) => {
@@ -276,19 +320,41 @@ export default function App() {
     [handleAddExerciseToSession]
   );
 
-  const handleSaveExercise = useCallback((exercise: Exercise) => {
-    setExercises((prev) => {
-      const exists = prev.some((ex) => ex.id === exercise.id);
-      if (exists) {
-        return prev.map((ex) => (ex.id === exercise.id ? exercise : ex));
-      }
-      return [...prev, exercise];
-    });
-  }, []);
+  const handleSaveExercise = useCallback(async (exercise: Exercise, options?: SaveExerciseOptions) => {
+    await saveExercise(exercise, options);
+    await reloadSessions();
+  }, [saveExercise, reloadSessions]);
 
-  const handleDeleteExercise = useCallback((id: string) => {
-    setExercises((prev) => prev.filter((ex) => ex.id !== id));
-  }, []);
+  const handleDeleteExercise = useCallback(async (id: string) => {
+    await deleteExercise(id);
+  }, [deleteExercise]);
+
+  if (exercisesLoading || sessionsLoading) {
+    return (
+      <div className={`${THEME_CLASSES.page} font-sans min-h-screen flex items-center justify-center`}>
+        <p className="text-theme-muted-text text-sm">Caricamento dati dal database...</p>
+      </div>
+    );
+  }
+
+  if (exercisesError || sessionsError) {
+    const errorMessage = exercisesError ?? sessionsError;
+    return (
+      <div className={`${THEME_CLASSES.page} font-sans min-h-screen flex flex-col items-center justify-center gap-4 px-4`}>
+        <p className="text-rose-400 text-sm text-center">{errorMessage}</p>
+        <p className="text-theme-muted-text text-xs text-center">
+          Avvia il server API con <code className="font-mono">npm run dev:server</code> oppure <code className="font-mono">npm run dev</code>.
+        </p>
+        <button
+          type="button"
+          onClick={() => void Promise.all([reloadExercises(), reloadSessions()])}
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition"
+        >
+          Riprova
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={`${THEME_CLASSES.page} font-sans pb-12`}>

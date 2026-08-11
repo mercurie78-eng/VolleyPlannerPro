@@ -8,6 +8,7 @@ import { AddParallelStationModal } from '../AddParallelStationModal';
 import { CATEGORIES, ROLES } from '../../data/constants';
 import { THEME_CLASSES } from '../../theme/constants';
 import { isParallelBlock, suggestExerciseRole } from '../../utils/session';
+import type { SaveExerciseOptions } from '../../api/exercises';
 import type { Exercise, ParallelStation, SessionItem } from '../../types';
 
 export interface BuilderTabProps {
@@ -53,7 +54,7 @@ export interface BuilderTabProps {
     exercise: Exercise,
     existingRole?: string
   ) => void;
-  onSaveExercise: (exercise: Exercise) => void;
+  onSaveExercise: (exercise: Exercise, options?: SaveExerciseOptions) => Promise<void>;
   onSearchChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
   onRoleChange: (value: string) => void;
@@ -123,8 +124,8 @@ export function BuilderTab({
     [session]
   );
 
-  const handleFormSave = (exercise: Exercise) => {
-    onSaveExercise(exercise);
+  const handleFormSave = async (exercise: Exercise, options?: SaveExerciseOptions) => {
+    await onSaveExercise(exercise, options);
     setFormExercise(null);
   };
 
@@ -220,6 +221,7 @@ export function BuilderTab({
               <span className="text-lg font-black font-mono text-purple-400 flex items-center gap-1">
                 <Zap className="w-4 h-4 fill-purple-400" /> ~{totalJumps} <span className="text-xs font-normal">salti/gioc.</span>
               </span>
+              <span className="text-[10px] text-theme-subtle block mt-0.5">Media squadra pesata per ruolo</span>
             </div>
 
             <div className="col-span-2 sm:col-span-1 bg-theme-elevated/80 rounded-xl p-3 border border-theme-border">
