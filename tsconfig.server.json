@@ -8,5 +8,5 @@
     "esModuleInterop": true,
     "noEmit": true
   },
-  "include": ["server", "src/data/exercises.ts", "src/types", "src/utils/session.ts", "src/utils/sessionStorage.ts", "src/utils/jumps.ts", "src/utils/roles.ts", "src/data/constants.ts"]
+  "include": ["server", "src/data/exercises.ts", "src/data/players.ts", "src/data/presets.ts", "src/types", "src/utils/session.ts", "src/utils/sessionStorage.ts", "src/utils/jumps.ts", "src/utils/roles.ts", "src/data/constants.ts"]
 }

@@ -2,20 +2,27 @@ import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
 import fs from 'node:fs';
-import type { Exercise, SavedSession } from '../src/types/index.js';
+import type { AttendanceRecord, Exercise, Player, SavedSession } from '../src/types/index.js';
 import {
   deleteExercise,
+  deletePlayer,
   deleteSavedSession,
   getDb,
   getExerciseById,
+  getPlayerById,
   getSavedSessionById,
+  getSessionAttendance,
   insertExercise,
+  insertPlayer,
   insertSavedSession,
   listExercises,
+  listPlayers,
   listSavedSessions,
   updateExercise,
   updateExerciseImageUrl,
+  updatePlayer,
   updateSavedSession,
+  upsertSessionAttendance,
 } from './db.js';
 import {
   deleteExerciseImageFile,
@@ -25,13 +32,14 @@ import {
   saveExerciseImageFile,
   UPLOAD_TMP_DIR,
 } from './images.js';
-import { seedIfEmpty, seedSessionsIfEmpty, migrateSessionsIfNeeded } from './seed.js';
+import { seedIfEmpty, seedSessionsIfEmpty, seedPlayersIfEmpty, migrateSessionsIfNeeded } from './seed.js';
 
 const PORT = Number(process.env.PORT) || 3001;
 
 const db = getDb();
 seedIfEmpty(db);
 seedSessionsIfEmpty(db);
+seedPlayersIfEmpty(db);
 migrateSessionsIfNeeded(db);
 ensureUploadsDir();
 
@@ -217,6 +225,105 @@ app.delete('/api/sessions/:id', (req, res) => {
     return;
   }
   res.status(204).send();
+});
+
+app.get('/api/players', (_req, res) => {
+  res.json(listPlayers(db));
+});
+
+app.get('/api/players/:id', (req, res) => {
+  const player = getPlayerById(db, req.params.id);
+  if (!player) {
+    res.status(404).json({ error: 'Giocatore non trovato' });
+    return;
+  }
+  res.json(player);
+});
+
+app.post('/api/players', (req, res) => {
+  const player = req.body as Player;
+  if (!player?.id || !player?.firstName?.trim() || !player?.lastName?.trim()) {
+    res.status(400).json({ error: 'id, firstName e lastName sono obbligatori' });
+    return;
+  }
+  if (!player?.role?.trim()) {
+    res.status(400).json({ error: 'role è obbligatorio' });
+    return;
+  }
+  if (getPlayerById(db, player.id)) {
+    res.status(409).json({ error: 'Giocatore già esistente' });
+    return;
+  }
+  insertPlayer(db, player);
+  res.status(201).json(player);
+});
+
+app.put('/api/players/:id', (req, res) => {
+  const player = { ...(req.body as Player), id: req.params.id };
+  if (!player.firstName?.trim() || !player.lastName?.trim()) {
+    res.status(400).json({ error: 'firstName e lastName sono obbligatori' });
+    return;
+  }
+  if (!player.role?.trim()) {
+    res.status(400).json({ error: 'role è obbligatorio' });
+    return;
+  }
+  const updated = updatePlayer(db, player);
+  if (!updated) {
+    res.status(404).json({ error: 'Giocatore non trovato' });
+    return;
+  }
+  res.json(updated);
+});
+
+app.delete('/api/players/:id', (req, res) => {
+  const deleted = deletePlayer(db, req.params.id);
+  if (!deleted) {
+    res.status(404).json({ error: 'Giocatore non trovato' });
+    return;
+  }
+  res.status(204).send();
+});
+
+app.get('/api/sessions/:id/attendance', (req, res) => {
+  const session = getSavedSessionById(db, req.params.id);
+  if (!session) {
+    res.status(404).json({ error: 'Allenamento non trovato' });
+    return;
+  }
+  res.json(getSessionAttendance(db, req.params.id));
+});
+
+app.put('/api/sessions/:id/attendance', (req, res) => {
+  const session = getSavedSessionById(db, req.params.id);
+  if (!session) {
+    res.status(404).json({ error: 'Allenamento non trovato' });
+    return;
+  }
+
+  const body = req.body as { records?: AttendanceRecord[] };
+  if (!Array.isArray(body.records)) {
+    res.status(400).json({ error: 'records deve essere un array' });
+    return;
+  }
+
+  for (const record of body.records) {
+    if (!record.playerId) {
+      res.status(400).json({ error: 'Ogni record deve avere playerId' });
+      return;
+    }
+    if (!getPlayerById(db, record.playerId)) {
+      res.status(400).json({ error: `Giocatore ${record.playerId} non trovato` });
+      return;
+    }
+  }
+
+  const saved = upsertSessionAttendance(
+    db,
+    req.params.id,
+    body.records.map((record) => ({ ...record, sessionId: req.params.id }))
+  );
+  res.json(saved);
 });
 
 const server = app.listen(PORT, () => {

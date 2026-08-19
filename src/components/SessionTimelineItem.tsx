@@ -89,6 +89,7 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
                 </div>
                 <p className="text-xs font-bold text-theme-secondary">{st.exercise.title}</p>
                 <ExerciseImage exercise={st.exercise} fit="contain" className="max-h-28" hideIfMissing />
+                <p className="text-xs text-theme-muted-text leading-relaxed">{st.exercise.description}</p>
                 <span className="text-[10px] text-purple-400 font-mono block">
                   ~{stationJumps(st)} salti × {countPlayersForRoleLabel(st.role)} gioc.
                 </span>

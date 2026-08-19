@@ -2,7 +2,14 @@ import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Exercise, SavedSession, SessionItem } from '../src/types/index.js';
+import type {
+  AttendanceRecord,
+  Exercise,
+  Player,
+  SavedSession,
+  SessionAttendance,
+  SessionItem,
+} from '../src/types/index.js';
 import {
   hydrateSavedSessionTotals,
   resolveStoredSessionItems,
@@ -44,6 +51,28 @@ export function getDb(): Database.Database {
       total_jumps INTEGER NOT NULL,
       items TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS players (
+      id TEXT PRIMARY KEY,
+      first_name TEXT NOT NULL,
+      last_name TEXT NOT NULL,
+      role TEXT NOT NULL,
+      jersey_number INTEGER,
+      active INTEGER NOT NULL DEFAULT 1,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS training_attendance (
+      session_id TEXT NOT NULL,
+      player_id TEXT NOT NULL,
+      present INTEGER NOT NULL DEFAULT 1,
+      note TEXT,
+      recorded_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (session_id, player_id),
+      FOREIGN KEY (session_id) REFERENCES saved_sessions(id) ON DELETE CASCADE,
+      FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
     )
   `);
 
@@ -293,6 +322,152 @@ export function deleteSavedSession(db: Database.Database, id: string): boolean {
 export function countSavedSessions(db: Database.Database): number {
   const row = db.prepare('SELECT COUNT(*) AS count FROM saved_sessions').get() as { count: number };
   return row.count;
+}
+
+interface PlayerRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  jersey_number: number | null;
+  active: number;
+  notes: string | null;
+  created_at: string;
+}
+
+function rowToPlayer(row: PlayerRow): Player {
+  return {
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    role: row.role,
+    jerseyNumber: row.jersey_number,
+    active: row.active === 1,
+    notes: row.notes ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+export function listPlayers(db: Database.Database, activeOnly = false): Player[] {
+  const query = activeOnly
+    ? 'SELECT * FROM players WHERE active = 1 ORDER BY last_name, first_name'
+    : 'SELECT * FROM players ORDER BY last_name, first_name';
+  const rows = db.prepare(query).all() as PlayerRow[];
+  return rows.map(rowToPlayer);
+}
+
+export function getPlayerById(db: Database.Database, id: string): Player | undefined {
+  const row = db.prepare('SELECT * FROM players WHERE id = ?').get(id) as PlayerRow | undefined;
+  return row ? rowToPlayer(row) : undefined;
+}
+
+export function insertPlayer(db: Database.Database, player: Player): Player {
+  db.prepare(`
+    INSERT INTO players (id, first_name, last_name, role, jersey_number, active, notes)
+    VALUES (@id, @firstName, @lastName, @role, @jerseyNumber, @active, @notes)
+  `).run({
+    id: player.id,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    role: player.role,
+    jerseyNumber: player.jerseyNumber ?? null,
+    active: player.active ? 1 : 0,
+    notes: player.notes ?? null,
+  });
+  return player;
+}
+
+export function updatePlayer(db: Database.Database, player: Player): Player | undefined {
+  const result = db.prepare(`
+    UPDATE players SET
+      first_name = @firstName,
+      last_name = @lastName,
+      role = @role,
+      jersey_number = @jerseyNumber,
+      active = @active,
+      notes = @notes
+    WHERE id = @id
+  `).run({
+    id: player.id,
+    firstName: player.firstName,
+    lastName: player.lastName,
+    role: player.role,
+    jerseyNumber: player.jerseyNumber ?? null,
+    active: player.active ? 1 : 0,
+    notes: player.notes ?? null,
+  });
+
+  if (result.changes === 0) return undefined;
+  return player;
+}
+
+export function deletePlayer(db: Database.Database, id: string): boolean {
+  const result = db.prepare('DELETE FROM players WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+export function countPlayers(db: Database.Database): number {
+  const row = db.prepare('SELECT COUNT(*) AS count FROM players').get() as { count: number };
+  return row.count;
+}
+
+interface AttendanceRow {
+  session_id: string;
+  player_id: string;
+  present: number;
+  note: string | null;
+  recorded_at: string;
+}
+
+function rowToAttendanceRecord(row: AttendanceRow): AttendanceRecord {
+  return {
+    sessionId: row.session_id,
+    playerId: row.player_id,
+    present: row.present === 1,
+    note: row.note ?? undefined,
+    recordedAt: row.recorded_at,
+  };
+}
+
+export function getSessionAttendance(db: Database.Database, sessionId: string): SessionAttendance {
+  const rows = db
+    .prepare('SELECT * FROM training_attendance WHERE session_id = ? ORDER BY player_id')
+    .all(sessionId) as AttendanceRow[];
+
+  return {
+    sessionId,
+    records: rows.map(rowToAttendanceRecord),
+  };
+}
+
+export function upsertSessionAttendance(
+  db: Database.Database,
+  sessionId: string,
+  records: AttendanceRecord[]
+): SessionAttendance {
+  const upsert = db.prepare(`
+    INSERT INTO training_attendance (session_id, player_id, present, note, recorded_at)
+    VALUES (@sessionId, @playerId, @present, @note, datetime('now'))
+    ON CONFLICT(session_id, player_id) DO UPDATE SET
+      present = excluded.present,
+      note = excluded.note,
+      recorded_at = datetime('now')
+  `);
+
+  const replaceAll = db.transaction((items: AttendanceRecord[]) => {
+    db.prepare('DELETE FROM training_attendance WHERE session_id = ?').run(sessionId);
+    for (const record of items) {
+      upsert.run({
+        sessionId,
+        playerId: record.playerId,
+        present: record.present ? 1 : 0,
+        note: record.note ?? null,
+      });
+    }
+  });
+
+  replaceAll(records);
+  return getSessionAttendance(db, sessionId);
 }
 
 /** Converte allenamenti legacy (snapshot completi) al formato a riferimenti. */

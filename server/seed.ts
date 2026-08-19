@@ -1,10 +1,13 @@
 import type Database from 'better-sqlite3';
 import { buildSampleSavedSession } from '../src/data/presets.js';
 import { SEED_EXERCISES } from '../src/data/exercises.js';
+import { SEED_PLAYERS } from '../src/data/players.js';
 import {
   countExercises,
+  countPlayers,
   countSavedSessions,
   insertExercise,
+  insertPlayer,
   insertSavedSession,
   listExercises,
   migrateSavedSessionsToRefs,
@@ -31,6 +34,19 @@ export function seedSessionsIfEmpty(db: Database.Database): void {
 
   insertSavedSession(db, buildSampleSavedSession(exercises));
   console.log('Database seeded with 1 sample saved session');
+}
+
+export function seedPlayersIfEmpty(db: Database.Database): void {
+  if (countPlayers(db) > 0) return;
+
+  const insert = db.transaction((players: typeof SEED_PLAYERS) => {
+    for (const player of players) {
+      insertPlayer(db, player);
+    }
+  });
+
+  insert(SEED_PLAYERS);
+  console.log(`Database seeded with ${SEED_PLAYERS.length} players`);
 }
 
 export function migrateSessionsIfNeeded(db: Database.Database): void {

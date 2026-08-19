@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, Dumbbell, Pencil, Trash2 } from 'lucide-react';
 import { CategoryBadge } from '../CategoryBadge';
 import { ExerciseFormModal } from '../ExerciseFormModal';
 import { ExerciseImage } from '../ExerciseImage';
+import { CATEGORIES } from '../../data/constants';
 import { THEME_CLASSES } from '../../theme/constants';
 import { exerciseJumps } from '../../utils/jumps';
 import type { SaveExerciseOptions } from '../../api/exercises';
@@ -22,7 +23,13 @@ export function DatabaseTab({
   onDeleteExercise,
 }: DatabaseTabProps) {
   const [formExercise, setFormExercise] = useState<Exercise | 'new' | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('Tutti');
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const filteredExercises = useMemo(() => {
+    if (selectedCategory === 'Tutti') return exercises;
+    return exercises.filter((ex) => ex.category === selectedCategory);
+  }, [exercises, selectedCategory]);
 
   const handleDelete = async (ex: Exercise) => {
     if (!window.confirm(`Eliminare "${ex.title}" dal database?`)) return;
@@ -51,7 +58,10 @@ export function DatabaseTab({
           <Dumbbell className="w-5 h-5 text-emerald-400" /> Database Completo Esercizi Pallavolo
         </h2>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-theme-muted-text">{exercises.length} Esercitazioni disponibili</span>
+          <span className="text-xs text-theme-muted-text">
+            {filteredExercises.length}
+            {selectedCategory !== 'Tutti' ? ` / ${exercises.length}` : ''} esercitazioni
+          </span>
           <button
             type="button"
             onClick={() => setFormExercise('new')}
@@ -61,6 +71,26 @@ export function DatabaseTab({
           </button>
         </div>
       </div>
+
+      {exercises.length > 0 && (
+        <div className={`${THEME_CLASSES.card} rounded-2xl p-4 flex flex-wrap items-center gap-3`}>
+          <label className="text-[10px] font-bold text-theme-subtle uppercase shrink-0">
+            Filtra per tipologia
+          </label>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className={`${THEME_CLASSES.inputMuted} text-xs rounded-lg px-3 py-2 min-w-[12rem]`}
+          >
+            <option value="Tutti">Tutte le tipologie</option>
+            {CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {actionError && (
         <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
@@ -72,9 +102,13 @@ export function DatabaseTab({
         <div className={`p-12 text-center ${THEME_CLASSES.emptyState} rounded-2xl text-sm`}>
           Nessun esercizio nel database. Clicca &quot;Nuovo Esercizio&quot; per iniziare.
         </div>
+      ) : filteredExercises.length === 0 ? (
+        <div className={`p-12 text-center ${THEME_CLASSES.emptyState} rounded-2xl text-sm`}>
+          Nessun esercizio nella tipologia &quot;{selectedCategory}&quot;.
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {exercises.map((ex) => (
+          {filteredExercises.map((ex) => (
             <div key={ex.id} className={`${THEME_CLASSES.card} rounded-2xl p-4 flex flex-col justify-between space-y-3`}>
               <div className="space-y-2">
                 <ExerciseImage exercise={ex} aspectClass="aspect-[4/3]" hideIfMissing />

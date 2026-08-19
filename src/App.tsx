@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { AppHeader } from './components/AppHeader';
+import { AttendanceTab } from './components/tabs/AttendanceTab';
 import { BuilderTab } from './components/tabs/BuilderTab';
 import { SavedTab } from './components/tabs/SavedTab';
 import { DatabaseTab } from './components/tabs/DatabaseTab';
@@ -7,6 +8,8 @@ import { PrintTab } from './components/tabs/PrintTab';
 import { DEFAULT_SESSION_TARGET_MINUTES } from './data/constants';
 import { buildPresetK1, buildPresetK2 } from './data/presets';
 import { useExercises } from './hooks/useExercises';
+import { usePlayers } from './hooks/usePlayers';
+import { useAttendance } from './hooks/useAttendance';
 import { useSavedSessions } from './hooks/useSavedSessions';
 import {
   cloneSession,
@@ -36,6 +39,16 @@ export default function App() {
 
   const { exercises, loading: exercisesLoading, error: exercisesError, saveExercise, deleteExercise, reload: reloadExercises } = useExercises();
   const { savedSessions, loading: sessionsLoading, error: sessionsError, saveSession, updateSession, deleteSession, reload: reloadSessions } = useSavedSessions();
+  const { players, loading: playersLoading, error: playersError, savePlayer, deletePlayer, reload: reloadPlayers } = usePlayers();
+  const {
+    attendance,
+    loading: attendanceLoading,
+    saving: attendanceSaving,
+    error: attendanceError,
+    loadAttendance,
+    saveAttendance,
+    clearAttendance,
+  } = useAttendance();
   const [session, setSession] = useState<SessionItem[]>([]);
   const [loadedSavedSessionId, setLoadedSavedSessionId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
@@ -329,7 +342,7 @@ export default function App() {
     await deleteExercise(id);
   }, [deleteExercise]);
 
-  if (exercisesLoading || sessionsLoading) {
+  if (exercisesLoading || sessionsLoading || playersLoading) {
     return (
       <div className={`${THEME_CLASSES.page} font-sans min-h-screen flex items-center justify-center`}>
         <p className="text-theme-muted-text text-sm">Caricamento dati dal database...</p>
@@ -337,8 +350,8 @@ export default function App() {
     );
   }
 
-  if (exercisesError || sessionsError) {
-    const errorMessage = exercisesError ?? sessionsError;
+  if (exercisesError || sessionsError || playersError) {
+    const errorMessage = exercisesError ?? sessionsError ?? playersError;
     return (
       <div className={`${THEME_CLASSES.page} font-sans min-h-screen flex flex-col items-center justify-center gap-4 px-4`}>
         <p className="text-rose-400 text-sm text-center">{errorMessage}</p>
@@ -347,7 +360,7 @@ export default function App() {
         </p>
         <button
           type="button"
-          onClick={() => void Promise.all([reloadExercises(), reloadSessions()])}
+          onClick={() => void Promise.all([reloadExercises(), reloadSessions(), reloadPlayers()])}
           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition"
         >
           Riprova
@@ -362,6 +375,7 @@ export default function App() {
         activeTab={activeTab}
         savedCount={savedSessions.length}
         exerciseCount={exercises.length}
+        playerCount={players.length}
         sessionTargetMinutes={sessionTargetMinutes}
         onTabChange={setActiveTab}
       />
@@ -423,6 +437,22 @@ export default function App() {
             onAddExercise={handleAddFromDatabase}
             onSaveExercise={handleSaveExercise}
             onDeleteExercise={handleDeleteExercise}
+          />
+        )}
+
+        {activeTab === 'attendance' && (
+          <AttendanceTab
+            players={players}
+            savedSessions={savedSessions}
+            onSavePlayer={savePlayer}
+            onDeletePlayer={deletePlayer}
+            onLoadAttendance={loadAttendance}
+            onSaveAttendance={saveAttendance}
+            onClearAttendance={clearAttendance}
+            attendanceRecords={attendance?.records ?? []}
+            attendanceLoading={attendanceLoading}
+            attendanceSaving={attendanceSaving}
+            attendanceError={attendanceError}
           />
         )}
 

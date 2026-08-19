@@ -1,4 +1,4 @@
-import { Clock, Dumbbell, Calendar, Printer, Sun, Moon } from 'lucide-react';
+import { Clock, Dumbbell, Calendar, Printer, Sun, Moon, ClipboardCheck } from 'lucide-react';
 import { THEME_CLASSES, THEME_LABELS } from '../theme/constants';
 import { useTheme } from '../theme/useTheme';
 import type { TabId } from '../types';
@@ -7,6 +7,7 @@ interface AppHeaderProps {
   activeTab: TabId;
   savedCount: number;
   exerciseCount: number;
+  playerCount: number;
   sessionTargetMinutes: number;
   onTabChange: (tab: TabId) => void;
 }
@@ -15,6 +16,7 @@ export function AppHeader({
   activeTab,
   savedCount,
   exerciseCount,
+  playerCount,
   sessionTargetMinutes,
   onTabChange,
 }: AppHeaderProps) {
@@ -34,7 +36,7 @@ export function AppHeader({
           </div>
           <div>
             <h1 className="text-lg font-bold text-theme-heading tracking-wide">VolleyPlanner PRO</h1>
-            <p className="text-xs text-theme-muted-text">Pianificazione Allenamenti Integrati & Pliometria</p>
+            <p className="text-xs text-theme-muted-text">Pianificazione Allenamenti Integrati</p>
           </div>
         </div>
 
@@ -58,6 +60,9 @@ export function AppHeader({
             </button>
             <button type="button" onClick={() => onTabChange('database')} className={tabClass('database')}>
               <Dumbbell className="w-3.5 h-3.5" /> Esercizi ({exerciseCount})
+            </button>
+            <button type="button" onClick={() => onTabChange('attendance')} className={tabClass('attendance')}>
+              <ClipboardCheck className="w-3.5 h-3.5" /> Presenze ({playerCount})
             </button>
             <button type="button" onClick={() => onTabChange('print')} className={tabClass('print')}>
               <Printer className="w-3.5 h-3.5" /> Scheda Campo

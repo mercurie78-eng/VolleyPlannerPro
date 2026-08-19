@@ -55,4 +55,28 @@ export interface SessionPreset {
   items: SessionItem[];
 }
 
-export type TabId = 'builder' | 'saved' | 'database' | 'print';
+export interface Player {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  jerseyNumber?: number | null;
+  active: boolean;
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface AttendanceRecord {
+  sessionId: string;
+  playerId: string;
+  present: boolean;
+  note?: string;
+  recordedAt?: string;
+}
+
+export interface SessionAttendance {
+  sessionId: string;
+  records: AttendanceRecord[];
+}
+
+export type TabId = 'builder' | 'saved' | 'database' | 'attendance' | 'print';
