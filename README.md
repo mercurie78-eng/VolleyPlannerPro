@@ -5,17 +5,22 @@ parallel stations, plyometric load tracking, and printable court sheets.
 
 ## Features
 
-- **Planner** — Build sessions with reorderable timeline, duration and
-  notes per exercise, sets/reps, parallel station blocks, and K1/K2
-  presets
-- **Exercise database** — CRUD catalog with category/role filters,
-  search, optional image per exercise, and editable sets/reps defaults
+- **Planner** — Build sessions with calendar date picker, reorderable
+  timeline grouped by category (with per-category minute totals),
+  duration and notes per exercise, sets/reps, tabata work/rest times,
+  parallel station blocks, and K1/K2 presets
+- **Exercise database** — CRUD catalog with category and (for *Tecnica
+  Analitica*) exercise-type filters, role search, optional image per
+  exercise, stable exercise IDs, and editable defaults for sets/reps and
+  tabata timing
 - **Archive** — Save, load, and delete training sessions in SQLite;
-  duplicate title/date prompts before overwrite
-- **Attendance** — Player roster and per-session presence tracking,
-  linked to saved sessions, with date-range filtering
+  sort newest/oldest; filter by date range; duplicate title/date
+  prompts before overwrite
+- **Attendance** — Player roster with medical visit expiry date,
+  per-session presence tracking linked to saved sessions, and date-range
+  filtering
 - **Print sheet** — Printable field schedule with exercise images when
-  available
+  available; descriptions preserve line breaks
 - **Jump load** — Estimated jumps from sets × reps, with team average
   weighted by role assignment
 - **Theme** — Dark and light mode
@@ -89,18 +94,21 @@ Exercise catalog (CRUD from the **Esercizi** tab).
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | TEXT PK | Client-generated, e.g. `ex-173…` |
+| `id` | TEXT PK | `ex-cccc-nnn` (4 lettere categoria + 3 cifre), es. `ex-tecn-001` |
 | `title` | TEXT | |
-| `category` | TEXT | One of: Riscaldamento, Pliometria, Tecnica Analitica, Lavoro Sintetico, Gioco Globale, Defaticamento |
+| `category` | TEXT | One of: Riscaldamento, Pliometria, Potenziamento, Tecnica Analitica, Lavoro Sintetico, Gioco Globale, Defaticamento |
+| `exercise_type` | TEXT | Optional subtype for *Tecnica Analitica*: Fondamentale tecnico, Progressione didattica, A coppie, A gruppi, Coordinazione, Situazionale |
 | `target_roles` | TEXT | JSON string array of role names |
 | `duration_min` | INTEGER | Default duration in minutes |
 | `intensity` | TEXT | Bassa, Media, Alta, Massimale |
-| `description` | TEXT | |
+| `description` | TEXT | Supports line breaks (`\n`) in the UI |
 | `coaching_points` | TEXT | JSON string array |
 | `estimated_jumps` | INTEGER | Derived: `sets × reps` |
-| `sets` | INTEGER | Default sets (added by migration) |
-| `reps` | INTEGER | Default reps (added by migration) |
-| `image_url` | TEXT | Optional URL path, e.g. `/api/exercises/:id/image` (added by migration) |
+| `sets` | INTEGER | Default sets / tabata rounds |
+| `reps` | INTEGER | Default reps per set |
+| `work_seconds` | INTEGER | Tabata work interval in seconds (default 0) |
+| `rest_seconds` | INTEGER | Tabata rest interval in seconds (default 0) |
+| `image_url` | TEXT | Optional URL path, e.g. `/api/exercises/:id/image` |
 
 ### `saved_sessions`
 
@@ -130,7 +138,9 @@ is used. Serialized by `src/utils/sessionStorage.ts`:
     "sessionDuration": 15,
     "notes": "",
     "sets": 4,
-    "reps": 10
+    "reps": 10,
+    "workSeconds": 20,
+    "restSeconds": 10
   },
   {
     "type": "parallel",
@@ -138,7 +148,14 @@ is used. Serialized by `src/utils/sessionStorage.ts`:
     "sessionDuration": 20,
     "notes": "",
     "stations": [
-      { "role": "Schiacciatori", "exerciseId": "ex-2", "sets": 3, "reps": 8 }
+      {
+        "role": "Schiacciatori",
+        "exerciseId": "ex-2",
+        "sets": 3,
+        "reps": 8,
+        "workSeconds": 20,
+        "restSeconds": 10
+      }
     ]
   }
 ]
@@ -159,6 +176,7 @@ Team roster for attendance (**Presenze → Rosa**).
 | `role` | TEXT | Schiacciatori, Centrali, Alzatori, Liberi, Opposti |
 | `jersey_number` | INTEGER | Optional |
 | `active` | INTEGER | `1` = active, `0` = inactive |
+| `medical_visit_expiry` | TEXT | Optional medical visit expiry (`YYYY-MM-DD`) |
 | `notes` | TEXT | Optional |
 | `created_at` | TEXT | SQLite `datetime('now')`, set on insert |
 
@@ -203,18 +221,22 @@ src/
 ├── hooks/            # useExercises, useSavedSessions, usePlayers, useAttendance
 ├── types/            # TypeScript interfaces
 ├── data/
-│   ├── constants.ts  # Categories, roles, team size
+│   ├── constants.ts  # Categories, exercise types, roles, team size
 │   ├── exercises.ts  # Seed catalog (first run only)
 │   ├── players.ts    # Seed roster (first run only)
 │   └── presets.ts    # K1/K2 preset builders
 ├── utils/
-│   ├── session.ts        # Timeline helpers
+│   ├── session.ts        # Timeline helpers, category grouping
 │   ├── sessionStorage.ts # Session ↔ DB ref serialization
+│   ├── exerciseId.ts     # ID format ex-cccc-nnn and next-id helpers
 │   ├── jumps.ts          # Jump load calculations
-│   └── roles.ts          # Role-based player counts
+│   ├── roles.ts          # Role-based player counts
+│   └── tabata.ts         # Work/rest label formatting
 └── components/
+    ├── DateRangePicker.tsx       # Calendar date / range picker
     ├── ExerciseImage.tsx
     ├── SessionTimelineItem.tsx
+    ├── SessionCategoryGroupHeader.tsx
     └── tabs/         # Builder, Archive, Database, Attendance, Print
 ```
 

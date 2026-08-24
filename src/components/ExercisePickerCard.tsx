@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Plus, Pencil, Split } from 'lucide-react';
 import { CategoryBadge } from './CategoryBadge';
+import { ExerciseTypeBadge } from './ExerciseTypeBadge';
 import { ExerciseImage } from './ExerciseImage';
 import { THEME_CLASSES } from '../theme/constants';
 import { exerciseJumps } from '../utils/jumps';
@@ -21,10 +22,20 @@ export const ExercisePickerCard = memo(function ExercisePickerCard({
 }: ExercisePickerCardProps) {
   return (
     <div className="bg-theme-elevated border border-theme-border rounded-xl p-3 hover:border-theme-muted-hover transition flex flex-col justify-between space-y-2">
-      <ExerciseImage exercise={exercise} aspectClass="aspect-[3/2]" className="mb-1" hideIfMissing />
+      <ExerciseImage
+        exercise={exercise}
+        fit="contain"
+        className="mb-1 w-full h-40"
+        hideIfMissing
+      />
       <div>
-        <div className="flex items-center justify-between">
-          <CategoryBadge category={exercise.category} variant="text" />
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex flex-wrap items-center gap-1 min-w-0">
+            <CategoryBadge category={exercise.category} variant="text" />
+            {exercise.exerciseType && (
+              <ExerciseTypeBadge exerciseType={exercise.exerciseType} className="text-[9px] px-1.5 py-0" />
+            )}
+          </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-purple-400 font-mono">~{exerciseJumps(exercise)} salti</span>
             <button
@@ -38,6 +49,7 @@ export const ExercisePickerCard = memo(function ExercisePickerCard({
           </div>
         </div>
         <h4 className="text-xs font-bold text-theme-heading mt-0.5">{exercise.title}</h4>
+        <p className="text-[10px] font-mono text-theme-subtle">{exercise.id}</p>
         <p className="text-[11px] text-theme-muted-text line-clamp-2 mt-1">{exercise.description}</p>
       </div>
       <div className="flex gap-1.5">

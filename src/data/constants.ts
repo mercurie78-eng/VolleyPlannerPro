@@ -3,6 +3,7 @@ export const DEFAULT_SESSION_TARGET_MINUTES = 120;
 export const CATEGORIES = [
   'Riscaldamento',
   'Pliometria',
+  'Potenziamento',
   'Tecnica Analitica',
   'Lavoro Sintetico',
   'Gioco Globale',
@@ -10,6 +11,24 @@ export const CATEGORIES = [
 ] as const;
 
 export type CategoryName = (typeof CATEGORIES)[number];
+
+/** Sottotipologie per la categoria Tecnica Analitica. */
+export const EXERCISE_TYPES = [
+  'Fondamentale tecnico',
+  'Progressione didattica',
+  'A coppie',
+  'A gruppi',
+  'Coordinazione',
+  'Situazionale',
+] as const;
+
+export type ExerciseTypeName = (typeof EXERCISE_TYPES)[number];
+
+export const ANALYTIC_CATEGORY: CategoryName = 'Tecnica Analitica';
+
+export function isAnalyticCategory(category: string): category is typeof ANALYTIC_CATEGORY {
+  return category === ANALYTIC_CATEGORY;
+}
 
 export const ROLES = ['Schiacciatori', 'Centrali', 'Alzatori', 'Liberi', 'Opposti'] as const;
 

@@ -2,6 +2,8 @@ export interface Exercise {
   id: string;
   title: string;
   category: string;
+  /** Sottotipologia per Tecnica Analitica (es. Fondamentale tecnico, Situazionale). */
+  exerciseType?: string | null;
   targetRoles: string[];
   durationMin: number;
   intensity: string;
@@ -9,6 +11,10 @@ export interface Exercise {
   coachingPoints: string[];
   sets: number;
   reps: number;
+  /** Durata lavoro per round tabata (secondi). */
+  workSeconds: number;
+  /** Durata pausa tra i round tabata (secondi). */
+  restSeconds: number;
   imageUrl?: string | null;
 }
 
@@ -17,6 +23,8 @@ export interface ParallelStation {
   exercise: Exercise;
   sets?: number;
   reps?: number;
+  workSeconds?: number;
+  restSeconds?: number;
 }
 
 export interface SessionExercise extends Exercise {
@@ -62,6 +70,8 @@ export interface Player {
   role: string;
   jerseyNumber?: number | null;
   active: boolean;
+  /** Scadenza visita medica (YYYY-MM-DD). */
+  medicalVisitExpiry?: string | null;
   notes?: string;
   createdAt?: string;
 }

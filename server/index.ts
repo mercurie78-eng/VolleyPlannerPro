@@ -3,6 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import fs from 'node:fs';
 import type { AttendanceRecord, Exercise, Player, SavedSession } from '../src/types/index.js';
+import { isExerciseIdCoherent, nextExerciseId } from '../src/utils/exerciseId.js';
 import {
   deleteExercise,
   deletePlayer,
@@ -78,10 +79,18 @@ app.get('/api/exercises/:id', (req, res) => {
 
 app.post('/api/exercises', (req, res) => {
   const exercise = req.body as Exercise;
-  if (!exercise?.id || !exercise?.title?.trim()) {
-    res.status(400).json({ error: 'id e title sono obbligatori' });
+  if (!exercise?.title?.trim()) {
+    res.status(400).json({ error: 'title è obbligatorio' });
     return;
   }
+
+  const existing = listExercises(db);
+  const reservedIds = new Set(existing.map((item) => item.id));
+
+  if (!exercise.id || !isExerciseIdCoherent(exercise.id, exercise.category) || reservedIds.has(exercise.id)) {
+    exercise.id = nextExerciseId(exercise.category, reservedIds);
+  }
+
   if (getExerciseById(db, exercise.id)) {
     res.status(409).json({ error: 'Esercizio già esistente' });
     return;

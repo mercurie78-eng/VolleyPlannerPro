@@ -14,6 +14,8 @@ export interface StoredSessionExerciseRef {
   notes: string;
   sets?: number;
   reps?: number;
+  workSeconds?: number;
+  restSeconds?: number;
 }
 
 export interface StoredParallelStationRef {
@@ -21,6 +23,8 @@ export interface StoredParallelStationRef {
   exerciseId: string;
   sets?: number;
   reps?: number;
+  workSeconds?: number;
+  restSeconds?: number;
 }
 
 export interface StoredParallelBlockRef {
@@ -98,7 +102,9 @@ function resolveSessionExerciseRef(
     ref.sessionDuration,
     ref.notes ?? '',
     ref.sets ?? exercise.sets,
-    ref.reps ?? exercise.reps
+    ref.reps ?? exercise.reps,
+    ref.workSeconds ?? exercise.workSeconds,
+    ref.restSeconds ?? exercise.restSeconds
   );
 }
 
@@ -121,6 +127,8 @@ function resolveParallelBlockRef(
       exercise,
       sets: stationRef.sets,
       reps: stationRef.reps,
+      workSeconds: stationRef.workSeconds,
+      restSeconds: stationRef.restSeconds,
     });
   }
 
@@ -213,6 +221,8 @@ export function serializeSessionItems(items: SessionItem[]): StoredSessionItem[]
             exerciseId: station.exercise.id,
             sets: station.sets,
             reps: station.reps,
+            workSeconds: station.workSeconds,
+            restSeconds: station.restSeconds,
           })),
         };
       }
@@ -224,6 +234,8 @@ export function serializeSessionItems(items: SessionItem[]): StoredSessionItem[]
         notes: item.notes ?? '',
         sets: item.sets,
         reps: item.reps,
+        workSeconds: item.workSeconds,
+        restSeconds: item.restSeconds,
       };
     })
     .filter((item) => item.type !== 'exercise' || Boolean(item.exerciseId));

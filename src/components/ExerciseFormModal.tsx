@@ -1,24 +1,27 @@
 import { useEffect, useState } from 'react';
 import { ImagePlus, Trash2, X } from 'lucide-react';
-import { CATEGORIES, INTENSITIES } from '../data/constants';
+import { CATEGORIES, EXERCISE_TYPES, INTENSITIES, isAnalyticCategory } from '../data/constants';
 import { THEME_CLASSES } from '../theme/constants';
 import { ExerciseImage } from './ExerciseImage';
 import { RoleMultiSelect } from './RoleMultiSelect';
 import { exerciseJumps } from '../utils/jumps';
+import { nextExerciseId } from '../utils/exerciseId';
 import type { SaveExerciseOptions } from '../api/exercises';
 import type { Exercise } from '../types';
 
 export interface ExerciseFormModalProps {
   exercise: Exercise | null;
+  existingExerciseIds: string[];
   onSave: (exercise: Exercise, options?: SaveExerciseOptions) => Promise<void>;
   onClose: () => void;
 }
 
-function emptyExercise(id: string): Exercise {
+function emptyExercise(category: string, existingExerciseIds: string[]): Exercise {
   return {
-    id,
+    id: nextExerciseId(category, existingExerciseIds),
     title: '',
-    category: CATEGORIES[0],
+    category,
+    exerciseType: null,
     targetRoles: ['Tutti'],
     durationMin: 10,
     intensity: INTENSITIES[1],
@@ -26,13 +29,17 @@ function emptyExercise(id: string): Exercise {
     coachingPoints: [],
     sets: 0,
     reps: 0,
+    workSeconds: 0,
+    restSeconds: 0,
     imageUrl: null,
   };
 }
 
-export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormModalProps) {
+export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClose }: ExerciseFormModalProps) {
   const isEditing = exercise !== null;
-  const [form, setForm] = useState<Exercise>(() => exercise ?? emptyExercise(`ex-${Date.now()}`));
+  const [form, setForm] = useState<Exercise>(() =>
+    exercise ?? emptyExercise(CATEGORIES[0], existingExerciseIds)
+  );
   const [coachingText, setCoachingText] = useState(() =>
     (exercise?.coachingPoints ?? []).join('\n')
   );
@@ -43,13 +50,13 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    setForm(exercise ?? emptyExercise(`ex-${Date.now()}`));
+    setForm(exercise ?? emptyExercise(CATEGORIES[0], existingExerciseIds));
     setCoachingText((exercise?.coachingPoints ?? []).join('\n'));
     setPendingImageFile(null);
     setPreviewUrl(null);
     setRemoveImage(false);
     setSaveError(null);
-  }, [exercise]);
+  }, [exercise, existingExerciseIds]);
 
   useEffect(() => {
     if (!pendingImageFile) {
@@ -136,7 +143,7 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
 
           <div>
             <label className={labelClass}>Immagine esercizio</label>
-            <ExerciseImage exercise={form} previewUrl={previewUrl} />
+            <ExerciseImage exercise={form} previewUrl={previewUrl} fit="contain" className="w-full h-64" />
             <div className="flex flex-wrap gap-2 mt-2">
               <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-theme-muted hover:bg-theme-muted-hover text-theme-secondary text-xs font-bold rounded-xl cursor-pointer transition">
                 <ImagePlus className="w-3.5 h-3.5" />
@@ -170,6 +177,13 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
               className={inputClass}
               placeholder="Nome dell'esercitazione..."
             />
+            {isEditing ? (
+              <p className="mt-1 text-[10px] font-mono text-theme-subtle">ID: {form.id}</p>
+            ) : (
+              <p className="mt-1 text-[10px] font-mono text-theme-subtle">
+                ID assegnato: {form.id}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -177,7 +191,17 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
               <label className={labelClass}>Categoria</label>
               <select
                 value={form.category}
-                onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
+                onChange={(e) => {
+                  const category = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    category,
+                    exerciseType: isAnalyticCategory(category) ? prev.exerciseType : null,
+                    id: isEditing
+                      ? prev.id
+                      : nextExerciseId(category, existingExerciseIds),
+                  }));
+                }}
                 className={inputClass}
               >
                 {CATEGORIES.map((cat) => (
@@ -198,6 +222,27 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
               </select>
             </div>
           </div>
+
+          {isAnalyticCategory(form.category) && (
+            <div>
+              <label className={labelClass}>Tipologia esercizio</label>
+              <select
+                value={form.exerciseType ?? ''}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    exerciseType: e.target.value === '' ? null : e.target.value,
+                  }))
+                }
+                className={inputClass}
+              >
+                <option value="">Seleziona tipologia...</option>
+                {EXERCISE_TYPES.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className={labelClass}>Ruoli target</label>
@@ -249,10 +294,39 @@ export function ExerciseFormModal({ exercise, onSave, onClose }: ExerciseFormMod
                 className={inputClass}
               />
             </div>
+            <div>
+              <label className={labelClass}>Lavoro (sec)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.workSeconds}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, workSeconds: parseInt(e.target.value, 10) || 0 }))
+                }
+                className={inputClass}
+                placeholder="es. 20"
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Pausa (sec)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.restSeconds}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, restSeconds: parseInt(e.target.value, 10) || 0 }))
+                }
+                className={inputClass}
+                placeholder="es. 10"
+              />
+            </div>
           </div>
 
           <p className="text-xs text-purple-400 font-mono">
             Salti stimati: {exerciseJumps(form)} ({form.sets} × {form.reps})
+            {form.workSeconds > 0 || form.restSeconds > 0
+              ? ` · Tabata: ${form.sets > 0 ? `${form.sets}× ` : ''}(${form.workSeconds}s / ${form.restSeconds}s)`
+              : ''}
           </p>
 
           <div>

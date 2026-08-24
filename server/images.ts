@@ -45,6 +45,17 @@ export function saveExerciseImageFile(exerciseId: string, tempPath: string, orig
   return destPath;
 }
 
+export function renameExerciseImageFile(oldId: string, newId: string): void {
+  const filePath = findExerciseImageFile(oldId);
+  if (!filePath) return;
+
+  const ext = path.extname(filePath);
+  const destPath = path.join(UPLOADS_DIR, `${newId}${ext}`);
+  if (filePath !== destPath) {
+    fs.renameSync(filePath, destPath);
+  }
+}
+
 export function extensionFromMime(mime: string): string {
   switch (mime) {
     case 'image/jpeg':

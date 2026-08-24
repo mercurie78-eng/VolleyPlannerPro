@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Plus, Dumbbell, Pencil, Trash2 } from 'lucide-react';
 import { CategoryBadge } from '../CategoryBadge';
+import { ExerciseTypeBadge } from '../ExerciseTypeBadge';
 import { ExerciseFormModal } from '../ExerciseFormModal';
 import { ExerciseImage } from '../ExerciseImage';
-import { CATEGORIES } from '../../data/constants';
+import { ANALYTIC_CATEGORY, CATEGORIES, EXERCISE_TYPES, isAnalyticCategory } from '../../data/constants';
 import { THEME_CLASSES } from '../../theme/constants';
 import { exerciseJumps } from '../../utils/jumps';
+import { formatWorkRestLabel } from '../../utils/tabata';
 import type { SaveExerciseOptions } from '../../api/exercises';
 import type { Exercise } from '../../types';
 
@@ -24,12 +26,22 @@ export function DatabaseTab({
 }: DatabaseTabProps) {
   const [formExercise, setFormExercise] = useState<Exercise | 'new' | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
+  const [selectedExerciseType, setSelectedExerciseType] = useState('Tutti');
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const showExerciseTypeFilter =
+    selectedCategory === 'Tutti' || selectedCategory === ANALYTIC_CATEGORY;
+
   const filteredExercises = useMemo(() => {
-    if (selectedCategory === 'Tutti') return exercises;
-    return exercises.filter((ex) => ex.category === selectedCategory);
-  }, [exercises, selectedCategory]);
+    return exercises.filter((ex) => {
+      const matchCategory = selectedCategory === 'Tutti' || ex.category === selectedCategory;
+      const matchExerciseType =
+        selectedExerciseType === 'Tutti' ||
+        !isAnalyticCategory(ex.category) ||
+        ex.exerciseType === selectedExerciseType;
+      return matchCategory && matchExerciseType;
+    });
+  }, [exercises, selectedCategory, selectedExerciseType]);
 
   const handleDelete = async (ex: Exercise) => {
     if (!window.confirm(`Eliminare "${ex.title}" dal database?`)) return;
@@ -75,20 +87,46 @@ export function DatabaseTab({
       {exercises.length > 0 && (
         <div className={`${THEME_CLASSES.card} rounded-2xl p-4 flex flex-wrap items-center gap-3`}>
           <label className="text-[10px] font-bold text-theme-subtle uppercase shrink-0">
-            Filtra per tipologia
+            Filtra per categoria
           </label>
           <select
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) => {
+              const category = e.target.value;
+              setSelectedCategory(category);
+              if (category !== 'Tutti' && category !== ANALYTIC_CATEGORY) {
+                setSelectedExerciseType('Tutti');
+              }
+            }}
             className={`${THEME_CLASSES.inputMuted} text-xs rounded-lg px-3 py-2 min-w-[12rem]`}
           >
-            <option value="Tutti">Tutte le tipologie</option>
+            <option value="Tutti">Tutte le categorie</option>
             {CATEGORIES.map((category) => (
               <option key={category} value={category}>
                 {category}
               </option>
             ))}
           </select>
+
+          {showExerciseTypeFilter && (
+            <>
+              <label className="text-[10px] font-bold text-theme-subtle uppercase shrink-0">
+                Tipologia analitica
+              </label>
+              <select
+                value={selectedExerciseType}
+                onChange={(e) => setSelectedExerciseType(e.target.value)}
+                className={`${THEME_CLASSES.inputMuted} text-xs rounded-lg px-3 py-2 min-w-[12rem]`}
+              >
+                <option value="Tutti">Tutte le tipologie</option>
+                {EXERCISE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
       )}
 
@@ -104,20 +142,32 @@ export function DatabaseTab({
         </div>
       ) : filteredExercises.length === 0 ? (
         <div className={`p-12 text-center ${THEME_CLASSES.emptyState} rounded-2xl text-sm`}>
-          Nessun esercizio nella tipologia &quot;{selectedCategory}&quot;.
+          Nessun esercizio corrisponde ai filtri selezionati.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredExercises.map((ex) => (
             <div key={ex.id} className={`${THEME_CLASSES.card} rounded-2xl p-4 flex flex-col justify-between space-y-3`}>
               <div className="space-y-2">
-                <ExerciseImage exercise={ex} aspectClass="aspect-[4/3]" hideIfMissing />
-                <div className="flex items-center justify-between">
+                <ExerciseImage
+                  exercise={ex}
+                  fit="contain"
+                  className="w-full h-56"
+                  hideIfMissing
+                />
+                <div className="flex flex-wrap items-center gap-2">
                   <CategoryBadge category={ex.category} />
-                  <span className="text-xs font-mono text-purple-400">~{exerciseJumps(ex)} salti ({ex.sets}×{ex.reps})</span>
+                  {ex.exerciseType && <ExerciseTypeBadge exerciseType={ex.exerciseType} />}
+                  <span className="text-xs font-mono text-purple-400 ml-auto">~{exerciseJumps(ex)} salti ({ex.sets}×{ex.reps})</span>
                 </div>
+                {formatWorkRestLabel(ex.workSeconds, ex.restSeconds, ex.sets) && (
+                  <p className="text-[10px] font-mono text-cyan-400">
+                    Tabata: {formatWorkRestLabel(ex.workSeconds, ex.restSeconds, ex.sets)}
+                  </p>
+                )}
 
                 <h3 className="text-sm font-bold text-theme-heading">{ex.title}</h3>
+                <p className="text-[10px] font-mono text-theme-subtle">{ex.id}</p>
                 <p className="text-xs text-theme-muted-text">{ex.description}</p>
 
                 <div className="flex flex-wrap gap-1">
@@ -176,6 +226,7 @@ export function DatabaseTab({
       {formExercise !== null && (
         <ExerciseFormModal
           exercise={formExercise === 'new' ? null : formExercise}
+          existingExerciseIds={exercises.map((ex) => ex.id)}
           onSave={handleFormSave}
           onClose={() => setFormExercise(null)}
         />

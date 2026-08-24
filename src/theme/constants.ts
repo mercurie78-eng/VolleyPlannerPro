@@ -53,6 +53,11 @@ export const CATEGORY_STYLES: Record<ThemeMode, Record<CategoryName, CategorySty
       text: 'text-purple-400',
       print: 'text-purple-700',
     },
+    Potenziamento: {
+      badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+      text: 'text-orange-400',
+      print: 'text-orange-700',
+    },
     'Tecnica Analitica': {
       badge: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
       text: 'text-cyan-400',
@@ -84,6 +89,11 @@ export const CATEGORY_STYLES: Record<ThemeMode, Record<CategoryName, CategorySty
       badge: 'bg-purple-500/15 text-purple-800 border-purple-500/30',
       text: 'text-purple-700',
       print: 'text-purple-700',
+    },
+    Potenziamento: {
+      badge: 'bg-orange-500/15 text-orange-800 border-orange-500/30',
+      text: 'text-orange-700',
+      print: 'text-orange-700',
     },
     'Tecnica Analitica': {
       badge: 'bg-cyan-500/15 text-cyan-800 border-cyan-500/30',

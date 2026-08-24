@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Calendar, Save, Check, Zap, Layers, Search } from 'lucide-react';
+import { Save, Check, Zap, Layers, Search } from 'lucide-react';
+import { DatePicker } from '../DateRangePicker';
 import { SessionTimelineItem } from '../SessionTimelineItem';
+import { SessionCategoryGroupHeader } from '../SessionCategoryGroupHeader';
 import { ExercisePickerCard } from '../ExercisePickerCard';
 import { ExerciseFormModal } from '../ExerciseFormModal';
 import { ParallelBlockFormModal } from '../ParallelBlockFormModal';
 import { AddParallelStationModal } from '../AddParallelStationModal';
-import { CATEGORIES, ROLES } from '../../data/constants';
+import { CATEGORIES, EXERCISE_TYPES, ROLES, ANALYTIC_CATEGORY } from '../../data/constants';
 import { THEME_CLASSES } from '../../theme/constants';
-import { isParallelBlock, suggestExerciseRole } from '../../utils/session';
+import { groupSessionByCategorySequence, isParallelBlock, suggestExerciseRole } from '../../utils/session';
 import type { SaveExerciseOptions } from '../../api/exercises';
 import type { Exercise, ParallelStation, SessionItem } from '../../types';
 
@@ -24,6 +26,7 @@ export interface BuilderTabProps {
   exercises: Exercise[];
   searchQuery: string;
   selectedCategory: string;
+  selectedExerciseType: string;
   selectedRole: string;
   onSessionTitleChange: (value: string) => void;
   onSessionFocusChange: (value: string) => void;
@@ -34,12 +37,16 @@ export interface BuilderTabProps {
   onDurationChange: (index: number, value: string) => void;
   onSetsChange: (index: number, value: string) => void;
   onRepsChange: (index: number, value: string) => void;
+  onWorkSecondsChange: (index: number, value: string) => void;
+  onRestSecondsChange: (index: number, value: string) => void;
   onNotesChange: (index: number, value: string) => void;
   onMove: (index: number, direction: -1 | 1) => void;
   onRemove: (index: number) => void;
   onRemoveParallelStation: (blockIndex: number, stationIndex: number) => void;
   onParallelStationSetsChange: (blockIndex: number, stationIndex: number, value: string) => void;
   onParallelStationRepsChange: (blockIndex: number, stationIndex: number, value: string) => void;
+  onParallelStationWorkSecondsChange: (blockIndex: number, stationIndex: number, value: string) => void;
+  onParallelStationRestSecondsChange: (blockIndex: number, stationIndex: number, value: string) => void;
   onParallelStationRoleChange: (blockIndex: number, stationIndex: number, value: string) => void;
   onAddExercise: (exercise: Exercise) => void;
   onAddParallelBlock: (
@@ -57,7 +64,9 @@ export interface BuilderTabProps {
   onSaveExercise: (exercise: Exercise, options?: SaveExerciseOptions) => Promise<void>;
   onSearchChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
+  onExerciseTypeChange: (value: string) => void;
   onRoleChange: (value: string) => void;
+  highlightedSessionDates?: Set<string>;
 }
 
 export function BuilderTab({
@@ -73,6 +82,7 @@ export function BuilderTab({
   exercises,
   searchQuery,
   selectedCategory,
+  selectedExerciseType,
   selectedRole,
   onSessionTitleChange,
   onSessionFocusChange,
@@ -83,12 +93,16 @@ export function BuilderTab({
   onDurationChange,
   onSetsChange,
   onRepsChange,
+  onWorkSecondsChange,
+  onRestSecondsChange,
   onNotesChange,
   onMove,
   onRemove,
   onRemoveParallelStation,
   onParallelStationSetsChange,
   onParallelStationRepsChange,
+  onParallelStationWorkSecondsChange,
+  onParallelStationRestSecondsChange,
   onParallelStationRoleChange,
   onAddExercise,
   onAddParallelBlock,
@@ -96,7 +110,9 @@ export function BuilderTab({
   onSaveExercise,
   onSearchChange,
   onCategoryChange,
+  onExerciseTypeChange,
   onRoleChange,
+  highlightedSessionDates,
 }: BuilderTabProps) {
   const [formExercise, setFormExercise] = useState<Exercise | null>(null);
   const [showParallelBlockForm, setShowParallelBlockForm] = useState(false);
@@ -121,6 +137,14 @@ export function BuilderTab({
           suggestedExistingRole: suggestExerciseRole(item),
         };
       }),
+    [session]
+  );
+
+  const showExerciseTypeFilter =
+    selectedCategory === 'Tutti' || selectedCategory === ANALYTIC_CATEGORY;
+
+  const sessionCategoryGroups = useMemo(
+    () => groupSessionByCategorySequence(session),
     [session]
   );
 
@@ -178,15 +202,12 @@ export function BuilderTab({
             </div>
 
             <div className="flex sm:flex-col gap-2 w-full sm:w-auto shrink-0">
-              <div className="flex items-center gap-2 bg-theme-elevated border border-theme-border rounded-xl px-3 py-1.5 text-xs text-theme-secondary">
-                <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-                <input
-                  type="date"
-                  value={sessionDate}
-                  onChange={(e) => onSessionDateChange(e.target.value)}
-                  className="bg-transparent text-theme-heading focus:outline-none font-mono text-xs cursor-pointer"
-                />
-              </div>
+              <DatePicker
+                value={sessionDate}
+                onChange={onSessionDateChange}
+                highlightedDates={highlightedSessionDates}
+                compact
+              />
               <button
                 type="button"
                 onClick={onSave}
@@ -247,23 +268,38 @@ export function BuilderTab({
               Nessun esercizio presente. Seleziona esercitazioni dal database a destra per iniziare.
             </div>
           ) : (
-            session.map((item, index) => (
-              <SessionTimelineItem
-                key={item.id}
-                item={item}
-                index={index}
-                onDurationChange={onDurationChange}
-                onSetsChange={onSetsChange}
-                onRepsChange={onRepsChange}
-                onNotesChange={onNotesChange}
-                onMove={onMove}
-                onRemove={onRemove}
-                onRemoveParallelStation={onRemoveParallelStation}
-                onParallelStationSetsChange={onParallelStationSetsChange}
-                onParallelStationRepsChange={onParallelStationRepsChange}
-                onParallelStationRoleChange={onParallelStationRoleChange}
-              />
-            ))
+            <div className="space-y-5">
+              {sessionCategoryGroups.map((group) => (
+                <div key={`${group.category}-${group.items[0]?.index ?? 0}`} className="space-y-3">
+                  <SessionCategoryGroupHeader
+                    category={group.category}
+                    totalMinutes={group.totalMinutes}
+                    itemCount={group.items.length}
+                  />
+                  {group.items.map(({ item, index }) => (
+                    <SessionTimelineItem
+                      key={item.id}
+                      item={item}
+                      index={index}
+                      onDurationChange={onDurationChange}
+                      onSetsChange={onSetsChange}
+                      onRepsChange={onRepsChange}
+                      onWorkSecondsChange={onWorkSecondsChange}
+                      onRestSecondsChange={onRestSecondsChange}
+                      onNotesChange={onNotesChange}
+                      onMove={onMove}
+                      onRemove={onRemove}
+                      onRemoveParallelStation={onRemoveParallelStation}
+                      onParallelStationSetsChange={onParallelStationSetsChange}
+                      onParallelStationRepsChange={onParallelStationRepsChange}
+                      onParallelStationWorkSecondsChange={onParallelStationWorkSecondsChange}
+                      onParallelStationRestSecondsChange={onParallelStationRestSecondsChange}
+                      onParallelStationRoleChange={onParallelStationRoleChange}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -286,11 +322,16 @@ export function BuilderTab({
             />
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <select
               value={selectedCategory}
-              onChange={(e) => onCategoryChange(e.target.value)}
-              className={`${THEME_CLASSES.inputMuted} text-xs rounded-lg px-2 py-1.5 flex-1`}
+              onChange={(e) => {
+                onCategoryChange(e.target.value);
+                if (e.target.value !== 'Tutti' && e.target.value !== ANALYTIC_CATEGORY) {
+                  onExerciseTypeChange('Tutti');
+                }
+              }}
+              className={`${THEME_CLASSES.inputMuted} text-xs rounded-lg px-2 py-1.5 flex-1 min-w-[8rem]`}
             >
               <option value="Tutti">Tutte le Categorie</option>
               {CATEGORIES.map((cat) => (
@@ -298,10 +339,23 @@ export function BuilderTab({
               ))}
             </select>
 
+            {showExerciseTypeFilter && (
+              <select
+                value={selectedExerciseType}
+                onChange={(e) => onExerciseTypeChange(e.target.value)}
+                className={`${THEME_CLASSES.inputMuted} text-xs rounded-lg px-2 py-1.5 flex-1 min-w-[8rem]`}
+              >
+                <option value="Tutti">Tutte le tipologie</option>
+                {EXERCISE_TYPES.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            )}
+
             <select
               value={selectedRole}
               onChange={(e) => onRoleChange(e.target.value)}
-              className={`${THEME_CLASSES.inputMuted} text-xs rounded-lg px-2 py-1.5 flex-1`}
+              className={`${THEME_CLASSES.inputMuted} text-xs rounded-lg px-2 py-1.5 flex-1 min-w-[8rem]`}
             >
               <option value="Tutti">Tutti i Ruoli</option>
               {ROLES.map((role) => (
@@ -327,6 +381,7 @@ export function BuilderTab({
       {formExercise !== null && (
         <ExerciseFormModal
           exercise={formExercise}
+          existingExerciseIds={exercises.map((ex) => ex.id)}
           onSave={handleFormSave}
           onClose={() => setFormExercise(null)}
         />

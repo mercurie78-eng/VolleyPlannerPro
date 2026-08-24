@@ -11,6 +11,7 @@ import {
   insertSavedSession,
   listExercises,
   migrateSavedSessionsToRefs,
+  migrateExerciseIds,
 } from './db.js';
 
 export function seedIfEmpty(db: Database.Database): void {
@@ -50,5 +51,6 @@ export function seedPlayersIfEmpty(db: Database.Database): void {
 }
 
 export function migrateSessionsIfNeeded(db: Database.Database): void {
+  migrateExerciseIds(db);
   migrateSavedSessionsToRefs(db);
 }

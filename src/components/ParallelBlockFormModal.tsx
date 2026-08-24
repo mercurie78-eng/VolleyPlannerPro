@@ -108,6 +108,8 @@ export function ParallelBlockFormModal({
         exercise,
         sets: exercise.sets,
         reps: exercise.reps,
+        workSeconds: exercise.workSeconds,
+        restSeconds: exercise.restSeconds,
       });
     }
 

@@ -280,3 +280,158 @@ export function formatDateRangeLabel(range: DateRange): string {
   if (normalized.from === normalized.to) return formatDisplayDate(normalized.from);
   return `${formatDisplayDate(normalized.from)} – ${formatDisplayDate(normalized.to)}`;
 }
+
+export interface DatePickerProps {
+  value: string;
+  onChange: (value: string) => void;
+  highlightedDates?: Set<string>;
+  compact?: boolean;
+}
+
+export function DatePicker({ value, onChange, highlightedDates, compact = false }: DatePickerProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(() => {
+    const anchor = value || new Date().toISOString().split('T')[0];
+    const parsed = parseIsoDate(anchor);
+    if (parsed) return { year: parsed.year, month: parsed.month };
+    const today = new Date();
+    return { year: today.getFullYear(), month: today.getMonth() };
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const anchor = value || new Date().toISOString().split('T')[0];
+    const parsed = parseIsoDate(anchor);
+    if (parsed) {
+      setViewDate({ year: parsed.year, month: parsed.month });
+    }
+  }, [open, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (event: MouseEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const calendarDays = useMemo(() => {
+    const firstWeekday = new Date(viewDate.year, viewDate.month, 1).getDay();
+    const leadingEmpty = firstWeekday === 0 ? 6 : firstWeekday - 1;
+    const totalDays = new Date(viewDate.year, viewDate.month + 1, 0).getDate();
+
+    const cells: Array<{ iso: string; day: number } | null> = [];
+    for (let i = 0; i < leadingEmpty; i += 1) cells.push(null);
+    for (let day = 1; day <= totalDays; day += 1) {
+      cells.push({ iso: toIsoDate(viewDate.year, viewDate.month, day), day });
+    }
+    return cells;
+  }, [viewDate]);
+
+  const handleDayClick = (iso: string) => {
+    onChange(iso);
+    setOpen(false);
+  };
+
+  const triggerLabel = value ? formatDisplayDate(value) : 'Seleziona data';
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className={`flex items-center gap-2 bg-theme-elevated border border-theme-border rounded-xl transition hover:border-emerald-500/40 text-theme-heading ${
+          compact ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-sm'
+        }`}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+      >
+        <CalendarDays className={`text-emerald-400 shrink-0 ${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
+        <span className={`font-mono ${compact ? 'text-xs' : 'text-xs sm:text-sm'}`}>{triggerLabel}</span>
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Seleziona data"
+          className={`absolute right-0 top-full z-50 mt-2 w-[min(100vw-2rem,20rem)] ${THEME_CLASSES.card} rounded-2xl border border-theme-border shadow-2xl p-4 space-y-4`}
+        >
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() =>
+                setViewDate((prev) => {
+                  if (prev.month === 0) return { year: prev.year - 1, month: 11 };
+                  return { year: prev.year, month: prev.month - 1 };
+                })
+              }
+              className={`p-1.5 rounded-lg ${THEME_CLASSES.mutedButton} transition`}
+              aria-label="Mese precedente"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-bold text-theme-heading">
+              {MONTH_NAMES[viewDate.month]} {viewDate.year}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setViewDate((prev) => {
+                  if (prev.month === 11) return { year: prev.year + 1, month: 0 };
+                  return { year: prev.year, month: prev.month + 1 };
+                })
+              }
+              className={`p-1.5 rounded-lg ${THEME_CLASSES.mutedButton} transition`}
+              aria-label="Mese successivo"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 text-center">
+            {WEEKDAY_NAMES.map((name) => (
+              <span key={name} className="text-[10px] font-bold text-theme-subtle uppercase py-1">
+                {name}
+              </span>
+            ))}
+            {calendarDays.map((cell, index) => {
+              if (!cell) {
+                return <span key={`empty-${index}`} />;
+              }
+
+              const isSelected = cell.iso === value;
+              const isHighlighted = highlightedDates?.has(cell.iso);
+
+              return (
+                <button
+                  key={cell.iso}
+                  type="button"
+                  onClick={() => handleDayClick(cell.iso)}
+                  className={`relative h-9 rounded-lg text-xs font-semibold transition ${
+                    isSelected
+                      ? 'bg-emerald-600 text-white'
+                      : 'text-theme-secondary hover:bg-theme-muted'
+                  }`}
+                >
+                  {cell.day}
+                  {isHighlighted && !isSelected && (
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {highlightedDates && highlightedDates.size > 0 && (
+            <p className="text-[10px] text-theme-muted-text">
+              I puntini indicano giorni con allenamenti salvati.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

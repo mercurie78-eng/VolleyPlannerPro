@@ -42,6 +42,31 @@ function formatSessionDate(isoDate: string): string {
   return `${day}/${month}/${year}`;
 }
 
+type MedicalVisitStatus = 'missing' | 'valid' | 'expiring' | 'expired';
+
+function medicalVisitStatus(expiry?: string | null): MedicalVisitStatus {
+  if (!expiry) return 'missing';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiryDate = new Date(`${expiry}T00:00:00`);
+
+  if (expiryDate < today) return 'expired';
+
+  const warningDate = new Date(today);
+  warningDate.setDate(warningDate.getDate() + 30);
+  if (expiryDate <= warningDate) return 'expiring';
+
+  return 'valid';
+}
+
+const MEDICAL_VISIT_STATUS_CLASSES: Record<MedicalVisitStatus, string> = {
+  missing: 'text-theme-subtle',
+  valid: 'text-theme-muted-text',
+  expiring: 'text-amber-400',
+  expired: 'text-rose-400',
+};
+
 export function AttendanceTab({
   players,
   savedSessions,
@@ -519,6 +544,15 @@ export function AttendanceTab({
                       <X className="w-3 h-3" /> Non attivo
                     </span>
                   )}
+
+                  <p className={`text-xs ${MEDICAL_VISIT_STATUS_CLASSES[medicalVisitStatus(player.medicalVisitExpiry)]}`}>
+                    Visita medica:{' '}
+                    {player.medicalVisitExpiry
+                      ? formatSessionDate(player.medicalVisitExpiry)
+                      : 'non impostata'}
+                    {medicalVisitStatus(player.medicalVisitExpiry) === 'expiring' && ' (in scadenza)'}
+                    {medicalVisitStatus(player.medicalVisitExpiry) === 'expired' && ' (scaduta)'}
+                  </p>
 
                   {player.notes && (
                     <p className="text-xs text-theme-subtle italic">{player.notes}</p>

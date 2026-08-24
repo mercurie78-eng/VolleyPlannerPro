@@ -15,6 +15,8 @@ import {
   resolveStoredSessionItems,
   serializeSessionItems,
 } from '../src/utils/sessionStorage.js';
+import { isExerciseIdCoherent, nextExerciseId } from '../src/utils/exerciseId.js';
+import { exerciseImageUrl, findExerciseImageFile, renameExerciseImageFile } from './images.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -31,6 +33,7 @@ export function getDb(): Database.Database {
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       category TEXT NOT NULL,
+      exercise_type TEXT,
       target_roles TEXT NOT NULL,
       duration_min INTEGER NOT NULL,
       intensity TEXT NOT NULL,
@@ -38,7 +41,9 @@ export function getDb(): Database.Database {
       coaching_points TEXT NOT NULL,
       estimated_jumps INTEGER NOT NULL DEFAULT 0,
       sets INTEGER NOT NULL DEFAULT 0,
-      reps INTEGER NOT NULL DEFAULT 0
+      reps INTEGER NOT NULL DEFAULT 0,
+      work_seconds INTEGER NOT NULL DEFAULT 0,
+      rest_seconds INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS saved_sessions (
@@ -60,6 +65,7 @@ export function getDb(): Database.Database {
       role TEXT NOT NULL,
       jersey_number INTEGER,
       active INTEGER NOT NULL DEFAULT 1,
+      medical_visit_expiry TEXT,
       notes TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -77,6 +83,7 @@ export function getDb(): Database.Database {
   `);
 
   migrateExercisesSchema(db);
+  migratePlayersSchema(db);
 
   return db;
 }
@@ -94,6 +101,26 @@ function migrateExercisesSchema(db: Database.Database): void {
   if (!columnNames.has('image_url')) {
     db.exec('ALTER TABLE exercises ADD COLUMN image_url TEXT');
   }
+  if (!columnNames.has('exercise_type')) {
+    db.exec('ALTER TABLE exercises ADD COLUMN exercise_type TEXT');
+  }
+  if (!columnNames.has('work_seconds')) {
+    db.exec('ALTER TABLE exercises ADD COLUMN work_seconds INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!columnNames.has('rest_seconds')) {
+    db.exec('ALTER TABLE exercises ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 0');
+  }
+
+  db.exec(`
+    UPDATE exercises
+    SET exercise_type = 'Situazionale'
+    WHERE id = 'ex-tecn-001' AND exercise_type IS NULL
+  `);
+  db.exec(`
+    UPDATE exercises
+    SET exercise_type = 'Fondamentale tecnico'
+    WHERE id IN ('ex-tecn-002', 'ex-tecn-003', 'ex-tecn-004') AND exercise_type IS NULL
+  `);
 
   db.exec(`
     UPDATE exercises
@@ -104,10 +131,20 @@ function migrateExercisesSchema(db: Database.Database): void {
   `);
 }
 
+function migratePlayersSchema(db: Database.Database): void {
+  const columns = db.prepare('PRAGMA table_info(players)').all() as { name: string }[];
+  const columnNames = new Set(columns.map((column) => column.name));
+
+  if (!columnNames.has('medical_visit_expiry')) {
+    db.exec('ALTER TABLE players ADD COLUMN medical_visit_expiry TEXT');
+  }
+}
+
 interface ExerciseRow {
   id: string;
   title: string;
   category: string;
+  exercise_type: string | null;
   target_roles: string;
   duration_min: number;
   intensity: string;
@@ -116,6 +153,8 @@ interface ExerciseRow {
   estimated_jumps: number;
   sets: number;
   reps: number;
+  work_seconds: number;
+  rest_seconds: number;
   image_url: string | null;
 }
 
@@ -124,6 +163,7 @@ function rowToExercise(row: ExerciseRow): Exercise {
     id: row.id,
     title: row.title,
     category: row.category,
+    exerciseType: row.exercise_type ?? undefined,
     targetRoles: JSON.parse(row.target_roles) as string[],
     durationMin: row.duration_min,
     intensity: row.intensity,
@@ -131,6 +171,8 @@ function rowToExercise(row: ExerciseRow): Exercise {
     coachingPoints: JSON.parse(row.coaching_points) as string[],
     sets: row.sets,
     reps: row.reps,
+    workSeconds: row.work_seconds,
+    restSeconds: row.rest_seconds,
     imageUrl: row.image_url,
   };
 }
@@ -147,12 +189,13 @@ export function getExerciseById(db: Database.Database, id: string): Exercise | u
 
 export function insertExercise(db: Database.Database, exercise: Exercise): Exercise {
   db.prepare(`
-    INSERT INTO exercises (id, title, category, target_roles, duration_min, intensity, description, coaching_points, estimated_jumps, sets, reps, image_url)
-    VALUES (@id, @title, @category, @targetRoles, @durationMin, @intensity, @description, @coachingPoints, @estimatedJumps, @sets, @reps, @imageUrl)
+    INSERT INTO exercises (id, title, category, exercise_type, target_roles, duration_min, intensity, description, coaching_points, estimated_jumps, sets, reps, work_seconds, rest_seconds, image_url)
+    VALUES (@id, @title, @category, @exerciseType, @targetRoles, @durationMin, @intensity, @description, @coachingPoints, @estimatedJumps, @sets, @reps, @workSeconds, @restSeconds, @imageUrl)
   `).run({
     id: exercise.id,
     title: exercise.title,
     category: exercise.category,
+    exerciseType: exercise.exerciseType ?? null,
     targetRoles: JSON.stringify(exercise.targetRoles),
     durationMin: exercise.durationMin,
     intensity: exercise.intensity,
@@ -161,6 +204,8 @@ export function insertExercise(db: Database.Database, exercise: Exercise): Exerc
     estimatedJumps: exercise.sets * exercise.reps,
     sets: exercise.sets,
     reps: exercise.reps,
+    workSeconds: exercise.workSeconds,
+    restSeconds: exercise.restSeconds,
     imageUrl: exercise.imageUrl ?? null,
   });
   return exercise;
@@ -171,6 +216,7 @@ export function updateExercise(db: Database.Database, exercise: Exercise): Exerc
     UPDATE exercises SET
       title = @title,
       category = @category,
+      exercise_type = @exerciseType,
       target_roles = @targetRoles,
       duration_min = @durationMin,
       intensity = @intensity,
@@ -179,12 +225,15 @@ export function updateExercise(db: Database.Database, exercise: Exercise): Exerc
       estimated_jumps = @estimatedJumps,
       sets = @sets,
       reps = @reps,
+      work_seconds = @workSeconds,
+      rest_seconds = @restSeconds,
       image_url = @imageUrl
     WHERE id = @id
   `).run({
     id: exercise.id,
     title: exercise.title,
     category: exercise.category,
+    exerciseType: exercise.exerciseType ?? null,
     targetRoles: JSON.stringify(exercise.targetRoles),
     durationMin: exercise.durationMin,
     intensity: exercise.intensity,
@@ -193,6 +242,8 @@ export function updateExercise(db: Database.Database, exercise: Exercise): Exerc
     estimatedJumps: exercise.sets * exercise.reps,
     sets: exercise.sets,
     reps: exercise.reps,
+    workSeconds: exercise.workSeconds,
+    restSeconds: exercise.restSeconds,
     imageUrl: exercise.imageUrl ?? null,
   });
 
@@ -331,6 +382,7 @@ interface PlayerRow {
   role: string;
   jersey_number: number | null;
   active: number;
+  medical_visit_expiry: string | null;
   notes: string | null;
   created_at: string;
 }
@@ -343,6 +395,7 @@ function rowToPlayer(row: PlayerRow): Player {
     role: row.role,
     jerseyNumber: row.jersey_number,
     active: row.active === 1,
+    medicalVisitExpiry: row.medical_visit_expiry ?? undefined,
     notes: row.notes ?? undefined,
     createdAt: row.created_at,
   };
@@ -363,8 +416,8 @@ export function getPlayerById(db: Database.Database, id: string): Player | undef
 
 export function insertPlayer(db: Database.Database, player: Player): Player {
   db.prepare(`
-    INSERT INTO players (id, first_name, last_name, role, jersey_number, active, notes)
-    VALUES (@id, @firstName, @lastName, @role, @jerseyNumber, @active, @notes)
+    INSERT INTO players (id, first_name, last_name, role, jersey_number, active, medical_visit_expiry, notes)
+    VALUES (@id, @firstName, @lastName, @role, @jerseyNumber, @active, @medicalVisitExpiry, @notes)
   `).run({
     id: player.id,
     firstName: player.firstName,
@@ -372,6 +425,7 @@ export function insertPlayer(db: Database.Database, player: Player): Player {
     role: player.role,
     jerseyNumber: player.jerseyNumber ?? null,
     active: player.active ? 1 : 0,
+    medicalVisitExpiry: player.medicalVisitExpiry ?? null,
     notes: player.notes ?? null,
   });
   return player;
@@ -385,6 +439,7 @@ export function updatePlayer(db: Database.Database, player: Player): Player | un
       role = @role,
       jersey_number = @jerseyNumber,
       active = @active,
+      medical_visit_expiry = @medicalVisitExpiry,
       notes = @notes
     WHERE id = @id
   `).run({
@@ -394,6 +449,7 @@ export function updatePlayer(db: Database.Database, player: Player): Player | un
     role: player.role,
     jerseyNumber: player.jerseyNumber ?? null,
     active: player.active ? 1 : 0,
+    medicalVisitExpiry: player.medicalVisitExpiry ?? null,
     notes: player.notes ?? null,
   });
 
@@ -484,4 +540,143 @@ export function migrateSavedSessionsToRefs(db: Database.Database): void {
       db.prepare('UPDATE saved_sessions SET items = ? WHERE id = ?').run(serialized, row.id);
     }
   }
+}
+
+function remapExerciseIdReferences(itemsJson: string, idMap: Map<string, string>): string {
+  if (idMap.size === 0) return itemsJson;
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(itemsJson);
+  } catch {
+    return itemsJson;
+  }
+  if (!Array.isArray(raw)) return itemsJson;
+
+  const remapped = raw.map((item) => {
+    if (!item || typeof item !== 'object') return item;
+    const record = item as Record<string, unknown>;
+
+    if (record.type === 'exercise' && typeof record.exerciseId === 'string') {
+      const mapped = idMap.get(record.exerciseId);
+      return mapped ? { ...record, exerciseId: mapped } : record;
+    }
+
+    if (record.type === 'parallel' && Array.isArray(record.stations)) {
+      return {
+        ...record,
+        stations: record.stations.map((station) => {
+          if (!station || typeof station !== 'object') return station;
+          const st = station as Record<string, unknown>;
+          if (typeof st.exerciseId !== 'string') return st;
+          const mapped = idMap.get(st.exerciseId);
+          return mapped ? { ...st, exerciseId: mapped } : st;
+        }),
+      };
+    }
+
+    if (typeof record.exerciseId === 'string') {
+      const mapped = idMap.get(record.exerciseId);
+      if (mapped) return { ...record, exerciseId: mapped };
+    }
+    if (typeof record.id === 'string') {
+      const mapped = idMap.get(record.id);
+      if (mapped) return { ...record, id: mapped };
+    }
+    if (record.exercise && typeof record.exercise === 'object') {
+      const exercise = record.exercise as Record<string, unknown>;
+      if (typeof exercise.id === 'string') {
+        const mapped = idMap.get(exercise.id);
+        if (mapped) {
+          return {
+            ...record,
+            exerciseId: mapped,
+            exercise: { ...exercise, id: mapped },
+          };
+        }
+      }
+    }
+    if (Array.isArray(record.stations)) {
+      return {
+        ...record,
+        stations: record.stations.map((station) => {
+          if (!station || typeof station !== 'object') return station;
+          const st = station as Record<string, unknown>;
+          const exercise = st.exercise;
+          if (!exercise || typeof exercise !== 'object') return st;
+          const ex = exercise as Record<string, unknown>;
+          if (typeof ex.id !== 'string') return st;
+          const mapped = idMap.get(ex.id);
+          return mapped ? { ...st, exercise: { ...ex, id: mapped } } : st;
+        }),
+      };
+    }
+
+    return record;
+  });
+
+  return JSON.stringify(remapped);
+}
+
+/** Rinomina ID esercizi non conformi a ex-cccc-nnn e aggiorna riferimenti collegati. */
+export function migrateExerciseIds(db: Database.Database): void {
+  const exercises = listExercises(db);
+  if (exercises.length === 0) return;
+
+  const allIds = new Set(exercises.map((exercise) => exercise.id));
+  const incoherent = exercises
+    .filter((exercise) => !isExerciseIdCoherent(exercise.id, exercise.category))
+    .sort(
+      (a, b) =>
+        a.category.localeCompare(b.category, 'it') ||
+        a.title.localeCompare(b.title, 'it') ||
+        a.id.localeCompare(b.id)
+    );
+
+  if (incoherent.length === 0) return;
+
+  const renames: Array<{ oldId: string; newId: string }> = [];
+
+  for (const exercise of incoherent) {
+    const newId = nextExerciseId(exercise.category, allIds);
+    if (newId === exercise.id) continue;
+    renames.push({ oldId: exercise.id, newId });
+    allIds.delete(exercise.id);
+    allIds.add(newId);
+  }
+
+  if (renames.length === 0) return;
+
+  const idMap = new Map(renames.map((rename) => [rename.oldId, rename.newId]));
+
+  const migrate = db.transaction(() => {
+    for (const { oldId, newId } of renames) {
+      renameExerciseImageFile(oldId, newId);
+      const imageUrl = findExerciseImageFile(newId)
+        ? exerciseImageUrl(newId)
+        : null;
+
+      db.prepare(`
+        UPDATE exercises SET
+          id = @newId,
+          image_url = @imageUrl
+        WHERE id = @oldId
+      `).run({ oldId, newId, imageUrl });
+    }
+
+    const sessions = db
+      .prepare('SELECT id, items FROM saved_sessions')
+      .all() as Array<{ id: string; items: string }>;
+    const updateSession = db.prepare('UPDATE saved_sessions SET items = ? WHERE id = ?');
+
+    for (const session of sessions) {
+      const remapped = remapExerciseIdReferences(session.items, idMap);
+      if (remapped !== session.items) {
+        updateSession.run(remapped, session.id);
+      }
+    }
+  });
+
+  migrate();
+  console.log(`Migrated ${renames.length} exercise id(s) to ex-cccc-nnn format`);
 }

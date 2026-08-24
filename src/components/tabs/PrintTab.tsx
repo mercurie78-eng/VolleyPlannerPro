@@ -2,6 +2,7 @@ import { Printer } from 'lucide-react';
 import { CategoryBadge } from '../CategoryBadge';
 import { ExerciseImage } from '../ExerciseImage';
 import { isParallelBlock } from '../../utils/session';
+import { formatWorkRestLabel } from '../../utils/tabata';
 import type { SessionItem } from '../../types';
 
 export interface PrintTabProps {
@@ -68,7 +69,7 @@ export function PrintTab({
                           exercise={st.exercise}
                           variant="print"
                           fit="contain"
-                          className="max-h-20"
+                          className="w-full h-24"
                         />
                         {(st.sets != null || st.reps != null) && (
                           <span className="block font-semibold text-amber-700 mt-0.5">
@@ -77,6 +78,19 @@ export function PrintTab({
                               : st.sets != null
                                 ? `${st.sets} serie`
                                 : `${st.reps} rip.`}
+                          </span>
+                        )}
+                        {formatWorkRestLabel(
+                          st.workSeconds ?? st.exercise.workSeconds,
+                          st.restSeconds ?? st.exercise.restSeconds,
+                          st.sets ?? st.exercise.sets
+                        ) && (
+                          <span className="block font-semibold text-cyan-700 mt-0.5">
+                            {formatWorkRestLabel(
+                              st.workSeconds ?? st.exercise.workSeconds,
+                              st.restSeconds ?? st.exercise.restSeconds,
+                              st.sets ?? st.exercise.sets
+                            )}
                           </span>
                         )}
                       </div>
@@ -93,8 +107,8 @@ export function PrintTab({
                     </span>
                     <span>{item.sessionDuration || item.durationMin} MIN</span>
                   </div>
-                  <ExerciseImage exercise={item} variant="print" fit="contain" className="max-h-28 mt-1" />
-                  <p className="text-xs text-slate-600 mt-0.5">{item.description}</p>
+                  <ExerciseImage exercise={item} variant="print" fit="contain" className="mt-1 w-full h-32" />
+                  <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{item.description}</p>
                   {(item.sets != null || item.reps != null) && (
                     <p className="text-xs font-semibold text-amber-700 mt-0.5">
                       {item.sets != null && item.reps != null
@@ -102,6 +116,11 @@ export function PrintTab({
                         : item.sets != null
                           ? `${item.sets} serie`
                           : `${item.reps} ripetizioni`}
+                    </p>
+                  )}
+                  {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets) && (
+                    <p className="text-xs font-semibold text-cyan-700 mt-0.5">
+                      Tabata: {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets)}
                     </p>
                   )}
                   {item.notes && <p className="text-xs italic text-emerald-700 mt-0.5">Note: {item.notes}</p>}

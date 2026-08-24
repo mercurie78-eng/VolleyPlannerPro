@@ -24,7 +24,9 @@ export function toSessionExercise(
   duration?: number,
   notes = '',
   sets?: number,
-  reps?: number
+  reps?: number,
+  workSeconds?: number,
+  restSeconds?: number
 ): SessionExercise {
   return {
     ...ex,
@@ -34,6 +36,8 @@ export function toSessionExercise(
     notes,
     sets: sets ?? ex.sets,
     reps: reps ?? ex.reps,
+    workSeconds: workSeconds ?? ex.workSeconds,
+    restSeconds: restSeconds ?? ex.restSeconds,
   };
 }
 
@@ -66,6 +70,7 @@ export function exerciseFromSessionExercise(item: SessionExercise): Exercise {
     id: item.exerciseId,
     title: item.title,
     category: item.category,
+    exerciseType: item.exerciseType ?? null,
     targetRoles: item.targetRoles,
     durationMin: item.durationMin,
     intensity: item.intensity,
@@ -73,6 +78,8 @@ export function exerciseFromSessionExercise(item: SessionExercise): Exercise {
     coachingPoints: item.coachingPoints,
     sets: item.sets,
     reps: item.reps,
+    workSeconds: item.workSeconds,
+    restSeconds: item.restSeconds,
     imageUrl: item.imageUrl ?? null,
   };
 }
@@ -97,6 +104,8 @@ export function convertSessionExerciseToParallelBlock(
         exercise: exerciseFromSessionExercise(item),
         sets: item.sets,
         reps: item.reps,
+        workSeconds: item.workSeconds,
+        restSeconds: item.restSeconds,
       },
       newStation,
     ]
@@ -123,6 +132,51 @@ export function computeSessionTotals(items: SessionItem[]) {
     totalMinutes: minutes,
     totalJumps: Math.round(teamJumps / TEAM_SIZE),
   };
+}
+
+export function getSessionItemCategory(item: SessionItem): string {
+  if (isParallelBlock(item)) {
+    return item.stations[0]?.exercise.category ?? 'Altro';
+  }
+  return item.category;
+}
+
+export function getSessionItemMinutes(item: SessionItem): number {
+  if (isParallelBlock(item)) {
+    return item.sessionDuration || 0;
+  }
+  return item.sessionDuration || item.durationMin || 0;
+}
+
+export interface SessionCategoryGroup {
+  category: string;
+  totalMinutes: number;
+  items: Array<{ item: SessionItem; index: number }>;
+}
+
+/** Raggruppa voci consecutive della sequenza che condividono la stessa categoria. */
+export function groupSessionByCategorySequence(items: SessionItem[]): SessionCategoryGroup[] {
+  const groups: SessionCategoryGroup[] = [];
+
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index];
+    const category = getSessionItemCategory(item);
+    const minutes = getSessionItemMinutes(item);
+    const last = groups[groups.length - 1];
+
+    if (last && last.category === category) {
+      last.items.push({ item, index });
+      last.totalMinutes += minutes;
+    } else {
+      groups.push({
+        category,
+        totalMinutes: minutes,
+        items: [{ item, index }],
+      });
+    }
+  }
+
+  return groups;
 }
 
 export function updateSessionAtIndex(

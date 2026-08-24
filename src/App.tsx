@@ -5,7 +5,7 @@ import { BuilderTab } from './components/tabs/BuilderTab';
 import { SavedTab } from './components/tabs/SavedTab';
 import { DatabaseTab } from './components/tabs/DatabaseTab';
 import { PrintTab } from './components/tabs/PrintTab';
-import { DEFAULT_SESSION_TARGET_MINUTES } from './data/constants';
+import { DEFAULT_SESSION_TARGET_MINUTES, isAnalyticCategory } from './data/constants';
 import { buildPresetK1, buildPresetK2 } from './data/presets';
 import { useExercises } from './hooks/useExercises';
 import { usePlayers } from './hooks/usePlayers';
@@ -52,6 +52,7 @@ export default function App() {
   const [session, setSession] = useState<SessionItem[]>([]);
   const [loadedSavedSessionId, setLoadedSavedSessionId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('Tutti');
+  const [selectedExerciseType, setSelectedExerciseType] = useState('Tutti');
   const [selectedRole, setSelectedRole] = useState('Tutti');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -70,6 +71,10 @@ export default function App() {
   const filteredExercises = useMemo(() => {
     return exercises.filter((ex) => {
       const matchCategory = selectedCategory === 'Tutti' || ex.category === selectedCategory;
+      const matchExerciseType =
+        selectedExerciseType === 'Tutti' ||
+        !isAnalyticCategory(ex.category) ||
+        ex.exerciseType === selectedExerciseType;
       const matchRole =
         selectedRole === 'Tutti' ||
         ex.targetRoles.includes('Tutti') ||
@@ -78,9 +83,14 @@ export default function App() {
         !normalizedSearch ||
         ex.title.toLowerCase().includes(normalizedSearch) ||
         ex.description.toLowerCase().includes(normalizedSearch);
-      return matchCategory && matchRole && matchSearch;
+      return matchCategory && matchExerciseType && matchRole && matchSearch;
     });
-  }, [exercises, selectedCategory, selectedRole, normalizedSearch]);
+  }, [exercises, selectedCategory, selectedExerciseType, selectedRole, normalizedSearch]);
+
+  const highlightedSessionDates = useMemo(
+    () => new Set(savedSessions.map((session) => session.date)),
+    [savedSessions]
+  );
 
   const showSaveToast = useCallback(() => {
     setSaveToast(true);
@@ -187,7 +197,14 @@ export default function App() {
             if (!isParallelBlock(block)) return block;
             return {
               ...block,
-              stations: [...block.stations, { role: newRole, exercise: ex, sets: ex.sets, reps: ex.reps }],
+              stations: [...block.stations, {
+                role: newRole,
+                exercise: ex,
+                sets: ex.sets,
+                reps: ex.reps,
+                workSeconds: ex.workSeconds,
+                restSeconds: ex.restSeconds,
+              }],
             };
           });
         }
@@ -264,6 +281,26 @@ export default function App() {
     );
   }, []);
 
+  const handleWorkSecondsChange = useCallback((index: number, val: string) => {
+    const workSeconds = val === '' ? 0 : parseInt(val, 10) || 0;
+    setSession((prev) =>
+      updateSessionAtIndex(prev, index, (item) => {
+        if ('isParallelBlock' in item) return item;
+        return { ...item, workSeconds };
+      })
+    );
+  }, []);
+
+  const handleRestSecondsChange = useCallback((index: number, val: string) => {
+    const restSeconds = val === '' ? 0 : parseInt(val, 10) || 0;
+    setSession((prev) =>
+      updateSessionAtIndex(prev, index, (item) => {
+        if ('isParallelBlock' in item) return item;
+        return { ...item, restSeconds };
+      })
+    );
+  }, []);
+
   const handleParallelStationSetsChange = useCallback(
     (blockIndex: number, stationIndex: number, val: string) => {
       const sets = val === '' ? undefined : parseInt(val, 10) || 0;
@@ -309,6 +346,42 @@ export default function App() {
             ...item,
             stations: item.stations.map((st, i) =>
               i === stationIndex ? { ...st, reps } : st
+            ),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handleParallelStationWorkSecondsChange = useCallback(
+    (blockIndex: number, stationIndex: number, val: string) => {
+      const workSeconds = val === '' ? undefined : parseInt(val, 10) || 0;
+      setSession((prev) =>
+        updateSessionAtIndex(prev, blockIndex, (item) => {
+          if (!isParallelBlock(item)) return item;
+          return {
+            ...item,
+            stations: item.stations.map((st, i) =>
+              i === stationIndex ? { ...st, workSeconds } : st
+            ),
+          };
+        })
+      );
+    },
+    []
+  );
+
+  const handleParallelStationRestSecondsChange = useCallback(
+    (blockIndex: number, stationIndex: number, val: string) => {
+      const restSeconds = val === '' ? undefined : parseInt(val, 10) || 0;
+      setSession((prev) =>
+        updateSessionAtIndex(prev, blockIndex, (item) => {
+          if (!isParallelBlock(item)) return item;
+          return {
+            ...item,
+            stations: item.stations.map((st, i) =>
+              i === stationIndex ? { ...st, restSeconds } : st
             ),
           };
         })
@@ -395,6 +468,7 @@ export default function App() {
             exercises={exercises}
             searchQuery={searchQuery}
             selectedCategory={selectedCategory}
+            selectedExerciseType={selectedExerciseType}
             selectedRole={selectedRole}
             onSessionTitleChange={setSessionTitle}
             onSessionFocusChange={setSessionFocus}
@@ -405,12 +479,16 @@ export default function App() {
             onDurationChange={handleDurationChange}
             onSetsChange={handleSetsChange}
             onRepsChange={handleRepsChange}
+            onWorkSecondsChange={handleWorkSecondsChange}
+            onRestSecondsChange={handleRestSecondsChange}
             onNotesChange={handleNotesChange}
             onMove={handleMoveItem}
             onRemove={handleRemoveItem}
             onRemoveParallelStation={handleRemoveParallelStation}
             onParallelStationSetsChange={handleParallelStationSetsChange}
             onParallelStationRepsChange={handleParallelStationRepsChange}
+            onParallelStationWorkSecondsChange={handleParallelStationWorkSecondsChange}
+            onParallelStationRestSecondsChange={handleParallelStationRestSecondsChange}
             onParallelStationRoleChange={handleParallelStationRoleChange}
             onAddExercise={handleAddExerciseToSession}
             onAddParallelBlock={handleAddParallelBlock}
@@ -418,7 +496,9 @@ export default function App() {
             onSaveExercise={handleSaveExercise}
             onSearchChange={setSearchQuery}
             onCategoryChange={setSelectedCategory}
+            onExerciseTypeChange={setSelectedExerciseType}
             onRoleChange={setSelectedRole}
+            highlightedSessionDates={highlightedSessionDates}
           />
         )}
 

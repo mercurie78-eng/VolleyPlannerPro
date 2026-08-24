@@ -1,11 +1,13 @@
 import { memo } from 'react';
 import { Split, Trash2 } from 'lucide-react';
 import { CategoryBadge } from './CategoryBadge';
+import { ExerciseTypeBadge } from './ExerciseTypeBadge';
 import { ExerciseImage } from './ExerciseImage';
 import { ItemControls } from './ItemControls';
 import { RoleMultiSelect } from './RoleMultiSelect';
 import { THEME_CLASSES } from '../theme/constants';
 import { isParallelBlock } from '../utils/session';
+import { formatWorkRestLabel } from '../utils/tabata';
 import { sessionItemJumps, stationJumps } from '../utils/jumps';
 import { countPlayersForRoleLabel, countPlayersForRoles } from '../utils/roles';
 import type { SessionItem } from '../types';
@@ -16,12 +18,16 @@ export interface SessionTimelineItemProps {
   onDurationChange: (index: number, value: string) => void;
   onSetsChange: (index: number, value: string) => void;
   onRepsChange: (index: number, value: string) => void;
+  onWorkSecondsChange: (index: number, value: string) => void;
+  onRestSecondsChange: (index: number, value: string) => void;
   onNotesChange: (index: number, value: string) => void;
   onMove: (index: number, direction: -1 | 1) => void;
   onRemove: (index: number) => void;
   onRemoveParallelStation: (blockIndex: number, stationIndex: number) => void;
   onParallelStationSetsChange: (blockIndex: number, stationIndex: number, value: string) => void;
   onParallelStationRepsChange: (blockIndex: number, stationIndex: number, value: string) => void;
+  onParallelStationWorkSecondsChange: (blockIndex: number, stationIndex: number, value: string) => void;
+  onParallelStationRestSecondsChange: (blockIndex: number, stationIndex: number, value: string) => void;
   onParallelStationRoleChange: (blockIndex: number, stationIndex: number, value: string) => void;
 }
 
@@ -34,12 +40,16 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
   onDurationChange,
   onSetsChange,
   onRepsChange,
+  onWorkSecondsChange,
+  onRestSecondsChange,
   onNotesChange,
   onMove,
   onRemove,
   onRemoveParallelStation,
   onParallelStationSetsChange,
   onParallelStationRepsChange,
+  onParallelStationWorkSecondsChange,
+  onParallelStationRestSecondsChange,
   onParallelStationRoleChange,
 }: SessionTimelineItemProps) {
   if (isParallelBlock(item)) {
@@ -66,7 +76,7 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
           ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {item.stations.map((st, stationIndex) => (
-              <div key={`${index}-${stationIndex}-${st.exercise.id}`} className="bg-theme-elevated p-2.5 rounded-lg border border-theme-border space-y-1">
+              <div key={`${index}-${stationIndex}-${st.exercise.id}`} className="bg-theme-elevated p-2.5 rounded-lg border border-theme-border flex flex-col gap-1 min-h-0">
                 <div className="flex items-start justify-between gap-1">
                   <label className="flex-1 min-w-0">
                     <span className="sr-only">Ruolo stazione</span>
@@ -88,12 +98,18 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
                   </button>
                 </div>
                 <p className="text-xs font-bold text-theme-secondary">{st.exercise.title}</p>
-                <ExerciseImage exercise={st.exercise} fit="contain" className="max-h-28" hideIfMissing />
-                <p className="text-xs text-theme-muted-text leading-relaxed">{st.exercise.description}</p>
+                <p className="text-[10px] font-mono text-theme-subtle">{st.exercise.id}</p>
+                <ExerciseImage
+                  exercise={st.exercise}
+                  fit="contain"
+                  className="w-full h-32 sm:h-36"
+                  hideIfMissing
+                />
+                <p className="text-xs text-theme-muted-text leading-relaxed whitespace-pre-wrap">{st.exercise.description}</p>
                 <span className="text-[10px] text-purple-400 font-mono block">
                   ~{stationJumps(st)} salti × {countPlayersForRoleLabel(st.role)} gioc.
                 </span>
-                <div className="flex items-center gap-2 text-[10px] pt-0.5">
+                <div className="flex flex-wrap items-center gap-2 text-[10px] pt-0.5">
                   <label className="flex items-center gap-1 text-theme-muted-text">
                     <span className="font-semibold">Serie</span>
                     <input
@@ -116,6 +132,30 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
                       className={`w-10 ${numberInputClass}`}
                     />
                   </label>
+                  <label className="flex items-center gap-1 text-theme-muted-text">
+                    <span className="font-semibold">Lav.</span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="—"
+                      value={(st.workSeconds ?? st.exercise.workSeconds) || ''}
+                      onChange={(e) => onParallelStationWorkSecondsChange(index, stationIndex, e.target.value)}
+                      className={`w-10 ${numberInputClass}`}
+                      title="Secondi di lavoro"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1 text-theme-muted-text">
+                    <span className="font-semibold">Pausa</span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="—"
+                      value={(st.restSeconds ?? st.exercise.restSeconds) || ''}
+                      onChange={(e) => onParallelStationRestSecondsChange(index, stationIndex, e.target.value)}
+                      className={`w-10 ${numberInputClass}`}
+                      title="Secondi di pausa"
+                    />
+                  </label>
                 </div>
               </div>
             ))}
@@ -132,7 +172,11 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
         <div className="flex items-start justify-between gap-3">
           <div>
             <CategoryBadge category={item.category} className="mr-2 tracking-wide" />
+            {item.exerciseType && (
+              <ExerciseTypeBadge exerciseType={item.exerciseType} className="mr-2 align-middle" />
+            )}
             <h4 className="text-sm font-bold text-theme-heading inline-block">{item.title}</h4>
+            <p className="text-[10px] font-mono text-theme-subtle mt-0.5">{item.exerciseId}</p>
           </div>
           <ItemControls
             duration={item.sessionDuration || item.durationMin}
@@ -142,9 +186,9 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
             onRemove={() => onRemove(index)}
           />
         </div>
-        <ExerciseImage exercise={item} fit="contain" className="max-h-36" hideIfMissing />
-        <p className="text-xs text-theme-muted-text leading-relaxed">{item.description}</p>
-        <div className="flex items-center gap-3 text-xs">
+        <ExerciseImage exercise={item} fit="contain" className="w-full h-36 sm:h-44" hideIfMissing />
+        <p className="text-xs text-theme-muted-text leading-relaxed whitespace-pre-wrap">{item.description}</p>
+        <div className="flex flex-wrap items-center gap-3 text-xs">
           <span className="text-[10px] text-purple-400 font-mono">
             ~{sessionItemJumps(item)} salti × {countPlayersForRoles(item.targetRoles)} gioc.
           </span>
@@ -170,7 +214,38 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
               className={`w-12 ${numberInputClass}`}
             />
           </label>
+          <label className="flex items-center gap-1.5 text-theme-muted-text">
+            <span className="font-semibold">Lavoro</span>
+            <input
+              type="number"
+              min={0}
+              placeholder="—"
+              value={item.workSeconds || ''}
+              onChange={(e) => onWorkSecondsChange(index, e.target.value)}
+              className={`w-12 ${numberInputClass}`}
+              title="Secondi di lavoro"
+            />
+            <span className="text-[10px]">s</span>
+          </label>
+          <label className="flex items-center gap-1.5 text-theme-muted-text">
+            <span className="font-semibold">Pausa</span>
+            <input
+              type="number"
+              min={0}
+              placeholder="—"
+              value={item.restSeconds || ''}
+              onChange={(e) => onRestSecondsChange(index, e.target.value)}
+              className={`w-12 ${numberInputClass}`}
+              title="Secondi di pausa"
+            />
+            <span className="text-[10px]">s</span>
+          </label>
         </div>
+        {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets) && (
+          <p className="text-[10px] font-mono text-cyan-400">
+            Tabata: {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets)}
+          </p>
+        )}
         <input
           type="text"
           placeholder="Note personalizzate dell'allenatore..."

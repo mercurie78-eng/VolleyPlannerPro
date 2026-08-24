@@ -6,7 +6,7 @@ export interface ExerciseImageProps {
   previewUrl?: string | null;
   className?: string;
   aspectClass?: string;
-  /** cover = riempie il riquadro (catalogo); contain = proporzioni naturali (timeline) */
+  /** cover = riempie il riquadro; contain = proporzioni naturali nel box disponibile */
   fit?: 'cover' | 'contain';
   /** print = stile scheda campo; non mostra placeholder se manca l'immagine */
   variant?: 'default' | 'print';
@@ -34,9 +34,10 @@ export function ExerciseImage({
 
   if (!src) {
     if (variant === 'print' || hideIfMissing) return null;
+    const placeholderSizing = fit === 'cover' ? aspectClass : 'h-40';
     return (
       <div
-        className={`${frameClass} ${aspectClass} flex items-center justify-center ${className}`}
+        className={`${frameClass} ${placeholderSizing} flex w-full items-center justify-center ${className}`}
       >
         <ImageIcon className="w-8 h-8 text-theme-subtle" aria-hidden />
         <span className="sr-only">Nessuna immagine per {exercise.title}</span>
@@ -44,24 +45,24 @@ export function ExerciseImage({
     );
   }
 
-  if (fit === 'contain') {
-    return (
-      <div className={frameClass}>
-        <img
-          src={src}
-          alt={`Illustrazione esercizio: ${exercise.title}`}
-          className={`block w-full max-w-full object-contain ${className}`}
-        />
-      </div>
-    );
-  }
+  const containerClass =
+    fit === 'cover'
+      ? `${frameClass} ${aspectClass} w-full ${className}`
+      : `${frameClass} flex w-full items-center justify-center ${className}`;
+
+  const imageClass =
+    fit === 'cover'
+      ? 'block h-full w-full object-cover'
+      : 'block h-full w-full object-contain';
 
   return (
-    <div className={`${frameClass} ${aspectClass} w-full ${className}`}>
+    <div className={containerClass}>
       <img
         src={src}
         alt={`Illustrazione esercizio: ${exercise.title}`}
-        className="h-full w-full object-cover"
+        className={imageClass}
+        loading="lazy"
+        decoding="async"
       />
     </div>
   );

@@ -18,6 +18,7 @@ function emptyPlayer(id: string): Player {
     role: ROLES[0],
     jerseyNumber: null,
     active: true,
+    medicalVisitExpiry: null,
     notes: '',
   };
 }
@@ -44,6 +45,7 @@ export function PlayerFormModal({ player, onSave, onClose }: PlayerFormModalProp
         ...form,
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
+        medicalVisitExpiry: form.medicalVisitExpiry?.trim() || null,
         notes: form.notes?.trim() || undefined,
       });
     } catch (err) {
@@ -124,6 +126,23 @@ export function PlayerFormModal({ player, onSave, onClose }: PlayerFormModalProp
                 className={`w-full ${THEME_CLASSES.input} text-sm rounded-lg px-3 py-2`}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-theme-subtle uppercase mb-1">
+              Scadenza visita medica
+            </label>
+            <input
+              type="date"
+              value={form.medicalVisitExpiry ?? ''}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  medicalVisitExpiry: e.target.value === '' ? null : e.target.value,
+                }))
+              }
+              className={`w-full ${THEME_CLASSES.input} text-sm rounded-lg px-3 py-2`}
+            />
           </div>
 
           <div>
