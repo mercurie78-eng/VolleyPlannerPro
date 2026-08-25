@@ -1,3 +1,5 @@
+import type { TacticalSceneData } from '../tactical-court/sceneState';
+
 export interface Exercise {
   id: string;
   title: string;
@@ -16,7 +18,11 @@ export interface Exercise {
   /** Durata pausa tra i round tabata (secondi). */
   restSeconds: number;
   imageUrl?: string | null;
+  /** Stato dell'editor tattico (giocatori, frecce, zoom) per modifiche successive. */
+  tacticalImageData?: TacticalSceneData | null;
 }
+
+export type { TacticalSceneData } from '../tactical-court/sceneState';
 
 export interface ParallelStation {
   role: string;

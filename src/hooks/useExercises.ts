@@ -42,7 +42,7 @@ export function useExercises(): UseExercisesResult {
 
     if (options?.removeImage) {
       await exercisesApi.deleteExerciseImage(saved.id);
-      saved = { ...saved, imageUrl: null };
+      saved = { ...saved, imageUrl: null, tacticalImageData: null };
     } else if (options?.imageFile) {
       saved = await exercisesApi.uploadExerciseImage(saved.id, options.imageFile);
     }

@@ -107,23 +107,35 @@ export function PrintTab({
                     </span>
                     <span>{item.sessionDuration || item.durationMin} MIN</span>
                   </div>
-                  <ExerciseImage exercise={item} variant="print" fit="contain" className="mt-1 w-full h-32" />
-                  <p className="text-xs text-slate-600 mt-0.5 whitespace-pre-wrap">{item.description}</p>
-                  {(item.sets != null || item.reps != null) && (
-                    <p className="text-xs font-semibold text-amber-700 mt-0.5">
-                      {item.sets != null && item.reps != null
-                        ? `${item.sets} serie × ${item.reps} ripetizioni`
-                        : item.sets != null
-                          ? `${item.sets} serie`
-                          : `${item.reps} ripetizioni`}
-                    </p>
-                  )}
-                  {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets) && (
-                    <p className="text-xs font-semibold text-cyan-700 mt-0.5">
-                      Tabata: {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets)}
-                    </p>
-                  )}
-                  {item.notes && <p className="text-xs italic text-emerald-700 mt-0.5">Note: {item.notes}</p>}
+                  <div className="mt-1">
+                    {item.imageUrl && (
+                      <div className="float-right ml-3 mb-1 w-36 h-32">
+                        <ExerciseImage
+                          exercise={item}
+                          variant="print"
+                          fit="contain"
+                          className="w-full h-full"
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-600 whitespace-pre-wrap">{item.description}</p>
+                    {(item.sets != null || item.reps != null) && (
+                      <p className="text-xs font-semibold text-amber-700 mt-0.5">
+                        {item.sets != null && item.reps != null
+                          ? `${item.sets} serie × ${item.reps} ripetizioni`
+                          : item.sets != null
+                            ? `${item.sets} serie`
+                            : `${item.reps} ripetizioni`}
+                      </p>
+                    )}
+                    {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets) && (
+                      <p className="text-xs font-semibold text-cyan-700 mt-0.5">
+                        Tabata: {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets)}
+                      </p>
+                    )}
+                    {item.notes && <p className="text-xs italic text-emerald-700 mt-0.5">Note: {item.notes}</p>}
+                    <div className="clear-both" aria-hidden />
+                  </div>
                 </div>
               )}
             </div>

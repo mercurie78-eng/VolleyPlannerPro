@@ -11,16 +11,22 @@ parallel stations, plyometric load tracking, and printable court sheets.
   parallel station blocks, and K1/K2 presets
 - **Exercise database** — CRUD catalog with category and (for *Tecnica
   Analitica*) exercise-type filters, role search, optional image per
-  exercise, stable exercise IDs, and editable defaults for sets/reps and
-  tabata timing
+  exercise (import or tactical editor), re-editable tactical diagrams,
+  stable exercise IDs, and editable defaults for sets/reps and tabata
+  timing
 - **Archive** — Save, load, and delete training sessions in SQLite;
   sort newest/oldest; filter by date range; duplicate title/date
   prompts before overwrite
 - **Attendance** — Player roster with medical visit expiry date,
   per-session presence tracking linked to saved sessions, and date-range
   filtering
-- **Print sheet** — Printable field schedule with exercise images when
-  available; descriptions preserve line breaks
+- **Print sheet** — Printable field schedule; exercise images (when
+  present) float beside the description with wrapped text; descriptions
+  preserve line breaks
+- **Tactical image editor** — Built-in 3D court editor to place players
+  (A/S/O/C/L), draw straight or curved trajectory arrows, zoom the view,
+  export PNG, and **edit** a previously saved diagram (scene state is
+  stored with the exercise)
 - **Jump load** — Estimated jumps from sets × reps, with team average
   weighted by role assignment
 - **Theme** — Dark and light mode
@@ -76,6 +82,13 @@ Local files under `data/` (gitignored):
 |------|---------|
 | `data/volley.db` | SQLite database (see [Database schema](#database-schema)) |
 | `data/uploads/exercises/` | Exercise images |
+| `data/uploads/tmp/` | Temporary upload staging (multer) |
+
+Exercise images can be **imported** (JPEG/PNG/WebP/GIF) or **created**
+in the tactical editor. When created or edited in the editor, a JSON
+snapshot of the scene (players, arrows, zoom) is stored in
+`tactical_image_data` so the diagram can be reopened and modified later.
+Importing an external file replaces the image and clears tactical data.
 
 ## Database schema
 
@@ -109,6 +122,7 @@ Exercise catalog (CRUD from the **Esercizi** tab).
 | `work_seconds` | INTEGER | Tabata work interval in seconds (default 0) |
 | `rest_seconds` | INTEGER | Tabata rest interval in seconds (default 0) |
 | `image_url` | TEXT | Optional URL path, e.g. `/api/exercises/:id/image` |
+| `tactical_image_data` | TEXT | Optional JSON snapshot of the tactical editor scene (players, arrows, zoom) for re-editing |
 
 ### `saved_sessions`
 
@@ -220,6 +234,7 @@ src/
 ├── api/              # REST client (exercises, sessions, players, attendance)
 ├── hooks/            # useExercises, useSavedSessions, usePlayers, useAttendance
 ├── types/            # TypeScript interfaces
+├── tactical-court/   # 3D court editor (Three.js): scene, players, arrows, export
 ├── data/
 │   ├── constants.ts  # Categories, exercise types, roles, team size
 │   ├── exercises.ts  # Seed catalog (first run only)
@@ -233,12 +248,30 @@ src/
 │   ├── roles.ts          # Role-based player counts
 │   └── tabata.ts         # Work/rest label formatting
 └── components/
-    ├── DateRangePicker.tsx       # Calendar date / range picker
+    ├── DateRangePicker.tsx         # Calendar date / range picker
+    ├── ExerciseFormModal.tsx       # Exercise CRUD form
+    ├── ExerciseImageCreatorModal.tsx # Tactical court image editor
     ├── ExerciseImage.tsx
     ├── SessionTimelineItem.tsx
     ├── SessionCategoryGroupHeader.tsx
     └── tabs/         # Builder, Archive, Database, Attendance, Print
 ```
+
+## Tactical image editor
+
+Available from **Esercizi** → create or edit an exercise → **Crea
+immagine** / **Modifica immagine**.
+
+| Capability | Description |
+|------------|-------------|
+| Players | Add/remove roles A, S, O, C, L; drag on court |
+| Arrows | Straight or curved trajectories; numbered labels at start; delete from list |
+| Zoom | +/- controls on the canvas |
+| Export | PNG attached to the exercise on confirm |
+| Re-edit | Scene JSON saved in `tactical_image_data` after save (not available for imported images) |
+
+Court modules live under `src/tactical-court/` (`scene.ts`, `players.ts`,
+`arrows.ts`, `sceneState.ts`, `exportImage.ts`).
 
 ## API overview
 
@@ -270,5 +303,6 @@ src/
 - React 18 + TypeScript
 - Vite
 - Tailwind CSS
+- Three.js (tactical court editor)
 - Express + better-sqlite3
 - [Lucide](https://lucide.dev/) icons

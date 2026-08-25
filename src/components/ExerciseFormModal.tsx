@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { ImagePlus, Trash2, X } from 'lucide-react';
+import { ImagePlus, PenLine, Trash2, X } from 'lucide-react';
 import { CATEGORIES, EXERCISE_TYPES, INTENSITIES, isAnalyticCategory } from '../data/constants';
 import { THEME_CLASSES } from '../theme/constants';
+import { ExerciseImageCreatorModal } from './ExerciseImageCreatorModal';
 import { ExerciseImage } from './ExerciseImage';
 import { RoleMultiSelect } from './RoleMultiSelect';
+import type { TacticalSceneData } from '../types';
 import { exerciseJumps } from '../utils/jumps';
 import { nextExerciseId } from '../utils/exerciseId';
 import type { SaveExerciseOptions } from '../api/exercises';
@@ -32,6 +34,7 @@ function emptyExercise(category: string, existingExerciseIds: string[]): Exercis
     workSeconds: 0,
     restSeconds: 0,
     imageUrl: null,
+    tacticalImageData: null,
   };
 }
 
@@ -44,8 +47,11 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
     (exercise?.coachingPoints ?? []).join('\n')
   );
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [pendingTacticalData, setPendingTacticalData] = useState<TacticalSceneData | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
+  const [showImageCreator, setShowImageCreator] = useState(false);
+  const [imageCreatorMode, setImageCreatorMode] = useState<'create' | 'edit'>('create');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -53,8 +59,11 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
     setForm(exercise ?? emptyExercise(CATEGORIES[0], existingExerciseIds));
     setCoachingText((exercise?.coachingPoints ?? []).join('\n'));
     setPendingImageFile(null);
+    setPendingTacticalData(null);
     setPreviewUrl(null);
     setRemoveImage(false);
+    setShowImageCreator(false);
+    setImageCreatorMode('create');
     setSaveError(null);
   }, [exercise, existingExerciseIds]);
 
@@ -72,13 +81,27 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
     const file = event.target.files?.[0];
     if (!file) return;
     setPendingImageFile(file);
+    setPendingTacticalData(null);
     setRemoveImage(false);
   };
 
   const handleRemoveImage = () => {
     setPendingImageFile(null);
+    setPendingTacticalData(null);
     setPreviewUrl(null);
     setRemoveImage(true);
+  };
+
+  const handleCreatedImage = (file: File, sceneData: TacticalSceneData) => {
+    setPendingImageFile(file);
+    setPendingTacticalData(sceneData);
+    setRemoveImage(false);
+    setShowImageCreator(false);
+  };
+
+  const openImageCreator = (mode: 'create' | 'edit') => {
+    setImageCreatorMode(mode);
+    setShowImageCreator(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,6 +122,9 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
           title: form.title.trim(),
           coachingPoints,
           imageUrl: removeImage ? null : form.imageUrl ?? null,
+          tacticalImageData: removeImage
+            ? null
+            : pendingTacticalData ?? form.tacticalImageData ?? null,
         },
         {
           imageFile: pendingImageFile,
@@ -116,6 +142,11 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
   const inputClass = `${THEME_CLASSES.input} text-sm rounded-lg px-3 py-2 w-full`;
   const labelClass = 'text-xs font-semibold text-theme-muted-text block mb-1';
   const hasImage = Boolean(previewUrl || (!removeImage && form.imageUrl));
+  const activeTacticalData =
+    pendingTacticalData ?? (!removeImage ? form.tacticalImageData ?? null : null);
+  const canEditTacticalImage = Boolean(activeTacticalData);
+  const imageCreatorInitialScene =
+    imageCreatorMode === 'edit' ? activeTacticalData : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay/80 backdrop-blur-sm">
@@ -147,7 +178,7 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
             <div className="flex flex-wrap gap-2 mt-2">
               <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-theme-muted hover:bg-theme-muted-hover text-theme-secondary text-xs font-bold rounded-xl cursor-pointer transition">
                 <ImagePlus className="w-3.5 h-3.5" />
-                {hasImage ? 'Sostituisci immagine' : 'Carica immagine'}
+                {hasImage ? 'Sostituisci immagine' : 'Importa immagine'}
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,image/gif"
@@ -155,6 +186,14 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
                   onChange={handleImageChange}
                 />
               </label>
+              <button
+                type="button"
+                onClick={() => openImageCreator(canEditTacticalImage ? 'edit' : 'create')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-bold rounded-xl transition"
+              >
+                <PenLine className="w-3.5 h-3.5" />
+                {canEditTacticalImage ? 'Modifica immagine' : 'Crea immagine'}
+              </button>
               {hasImage && (
                 <button
                   type="button"
@@ -369,6 +408,15 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
           </div>
         </form>
       </div>
+
+      {showImageCreator && (
+        <ExerciseImageCreatorModal
+          exerciseTitle={form.title}
+          initialScene={imageCreatorInitialScene}
+          onConfirm={handleCreatedImage}
+          onClose={() => setShowImageCreator(false)}
+        />
+      )}
     </div>
   );
 }

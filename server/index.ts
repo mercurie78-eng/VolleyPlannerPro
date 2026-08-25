@@ -164,7 +164,9 @@ app.delete('/api/exercises/:id/image', (req, res) => {
   }
 
   deleteExerciseImageFile(req.params.id);
-  updateExerciseImageUrl(db, req.params.id, null);
+  db.prepare('UPDATE exercises SET image_url = NULL, tactical_image_data = NULL WHERE id = @id').run({
+    id: req.params.id,
+  });
   res.status(204).send();
 });
 

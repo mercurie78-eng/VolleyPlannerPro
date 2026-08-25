@@ -81,6 +81,7 @@ export function exerciseFromSessionExercise(item: SessionExercise): Exercise {
     workSeconds: item.workSeconds,
     restSeconds: item.restSeconds,
     imageUrl: item.imageUrl ?? null,
+    tacticalImageData: item.tacticalImageData ?? null,
   };
 }
 

@@ -10,6 +10,7 @@ import type {
   SessionAttendance,
   SessionItem,
 } from '../src/types/index.js';
+import type { TacticalSceneData } from '../src/tactical-court/sceneState.js';
 import {
   hydrateSavedSessionTotals,
   resolveStoredSessionItems,
@@ -110,6 +111,9 @@ function migrateExercisesSchema(db: Database.Database): void {
   if (!columnNames.has('rest_seconds')) {
     db.exec('ALTER TABLE exercises ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 0');
   }
+  if (!columnNames.has('tactical_image_data')) {
+    db.exec('ALTER TABLE exercises ADD COLUMN tactical_image_data TEXT');
+  }
 
   db.exec(`
     UPDATE exercises
@@ -156,6 +160,16 @@ interface ExerciseRow {
   work_seconds: number;
   rest_seconds: number;
   image_url: string | null;
+  tactical_image_data: string | null;
+}
+
+function parseTacticalImageData(raw: string | null): TacticalSceneData | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as TacticalSceneData;
+  } catch {
+    return null;
+  }
 }
 
 function rowToExercise(row: ExerciseRow): Exercise {
@@ -174,6 +188,7 @@ function rowToExercise(row: ExerciseRow): Exercise {
     workSeconds: row.work_seconds,
     restSeconds: row.rest_seconds,
     imageUrl: row.image_url,
+    tacticalImageData: parseTacticalImageData(row.tactical_image_data),
   };
 }
 
@@ -189,8 +204,8 @@ export function getExerciseById(db: Database.Database, id: string): Exercise | u
 
 export function insertExercise(db: Database.Database, exercise: Exercise): Exercise {
   db.prepare(`
-    INSERT INTO exercises (id, title, category, exercise_type, target_roles, duration_min, intensity, description, coaching_points, estimated_jumps, sets, reps, work_seconds, rest_seconds, image_url)
-    VALUES (@id, @title, @category, @exerciseType, @targetRoles, @durationMin, @intensity, @description, @coachingPoints, @estimatedJumps, @sets, @reps, @workSeconds, @restSeconds, @imageUrl)
+    INSERT INTO exercises (id, title, category, exercise_type, target_roles, duration_min, intensity, description, coaching_points, estimated_jumps, sets, reps, work_seconds, rest_seconds, image_url, tactical_image_data)
+    VALUES (@id, @title, @category, @exerciseType, @targetRoles, @durationMin, @intensity, @description, @coachingPoints, @estimatedJumps, @sets, @reps, @workSeconds, @restSeconds, @imageUrl, @tacticalImageData)
   `).run({
     id: exercise.id,
     title: exercise.title,
@@ -207,6 +222,7 @@ export function insertExercise(db: Database.Database, exercise: Exercise): Exerc
     workSeconds: exercise.workSeconds,
     restSeconds: exercise.restSeconds,
     imageUrl: exercise.imageUrl ?? null,
+    tacticalImageData: exercise.tacticalImageData ? JSON.stringify(exercise.tacticalImageData) : null,
   });
   return exercise;
 }
@@ -227,7 +243,8 @@ export function updateExercise(db: Database.Database, exercise: Exercise): Exerc
       reps = @reps,
       work_seconds = @workSeconds,
       rest_seconds = @restSeconds,
-      image_url = @imageUrl
+      image_url = @imageUrl,
+      tactical_image_data = @tacticalImageData
     WHERE id = @id
   `).run({
     id: exercise.id,
@@ -245,6 +262,7 @@ export function updateExercise(db: Database.Database, exercise: Exercise): Exerc
     workSeconds: exercise.workSeconds,
     restSeconds: exercise.restSeconds,
     imageUrl: exercise.imageUrl ?? null,
+    tacticalImageData: exercise.tacticalImageData ? JSON.stringify(exercise.tacticalImageData) : null,
   });
 
   if (result.changes === 0) return undefined;
