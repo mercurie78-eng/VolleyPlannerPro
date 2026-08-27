@@ -1,3 +1,20 @@
+export function formatSetsRepsLabel(
+  sets?: number | null,
+  reps?: number | null,
+  options?: { repsShort?: boolean }
+): string | null {
+  const normalizedSets = sets ?? 0;
+  const normalizedReps = reps ?? 0;
+  const repWord = options?.repsShort ? 'rip.' : 'ripetizioni';
+
+  if (normalizedSets <= 0 && normalizedReps <= 0) return null;
+  if (normalizedSets > 0 && normalizedReps > 0) {
+    return `${normalizedSets} serie × ${normalizedReps} ${repWord}`;
+  }
+  if (normalizedSets > 0) return `${normalizedSets} serie`;
+  return `${normalizedReps} ${repWord}`;
+}
+
 export function formatWorkRestLabel(
   workSeconds: number,
   restSeconds: number,

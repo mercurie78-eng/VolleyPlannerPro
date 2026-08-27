@@ -24,7 +24,7 @@ import {
   updateSessionAtIndex,
   withFreshSessionIds,
 } from './utils/session';
-import { findSavedSessionByIdentity, normalizeSessionTitle } from './utils/savedSession';
+import { findSavedSessionByIdentity, normalizeSessionTitle, duplicateSavedSession } from './utils/savedSession';
 import type { Exercise, ParallelStation, SavedSession, SessionItem, TabId } from './types';
 import type { SaveExerciseOptions } from './api/exercises';
 import { THEME_CLASSES } from './theme/constants';
@@ -174,6 +174,11 @@ export default function App() {
       setLoadedSavedSessionId(null);
     }
   }, [deleteSession, loadedSavedSessionId]);
+
+  const handleDuplicateSession = useCallback(async (source: SavedSession) => {
+    const copy = duplicateSavedSession(source, savedSessions);
+    await saveSession(copy);
+  }, [savedSessions, saveSession]);
 
   const handleAddExerciseToSession = useCallback((ex: Exercise) => {
     setSession((prev) => [...prev, toSessionExercise(ex)]);
@@ -443,7 +448,7 @@ export default function App() {
   }
 
   return (
-    <div className={`${THEME_CLASSES.page} font-sans pb-12`}>
+    <div className={`${THEME_CLASSES.page} font-sans pb-12 print:pb-0 print:bg-white`}>
       <AppHeader
         activeTab={activeTab}
         savedCount={savedSessions.length}
@@ -453,7 +458,7 @@ export default function App() {
         onTabChange={setActiveTab}
       />
 
-      <main className="max-w-7xl mx-auto px-4 mt-6">
+      <main className="max-w-7xl mx-auto px-4 mt-6 print:max-w-none print:mx-0 print:px-0 print:mt-0">
         {activeTab === 'builder' && (
           <BuilderTab
             sessionTitle={sessionTitle}
@@ -507,6 +512,7 @@ export default function App() {
             savedSessions={savedSessions}
             onNewSession={handleNewSession}
             onDelete={handleDeleteSaved}
+            onDuplicate={handleDuplicateSession}
             onLoad={handleLoadSession}
           />
         )}

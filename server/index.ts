@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
 import fs from 'node:fs';
+import path from 'node:path';
 import type { AttendanceRecord, Exercise, Player, SavedSession } from '../src/types/index.js';
 import { isExerciseIdCoherent, nextExerciseId } from '../src/utils/exerciseId.js';
 import {
@@ -34,8 +35,10 @@ import {
   UPLOAD_TMP_DIR,
 } from './images.js';
 import { seedIfEmpty, seedSessionsIfEmpty, seedPlayersIfEmpty, migrateSessionsIfNeeded } from './seed.js';
+import { listenWithFallback } from './port.js';
 
-const PORT = Number(process.env.PORT) || 3001;
+const preferredPort = Number(process.env.PORT) || 3001;
+const DEV_API_PORT_FILE = path.join(process.cwd(), '.dev-api-port');
 
 const db = getDb();
 seedIfEmpty(db);
@@ -337,14 +340,32 @@ app.put('/api/sessions/:id/attendance', (req, res) => {
   res.json(saved);
 });
 
-const server = app.listen(PORT, () => {
-  console.log(`API server running on http://localhost:${PORT}`);
+async function startServer(): Promise<void> {
+  const port = await listenWithFallback(app, preferredPort);
+
+  if (port !== preferredPort) {
+    console.log(`Porta ${preferredPort} occupata: API su http://localhost:${port}`);
+  }
+
+  fs.writeFileSync(DEV_API_PORT_FILE, String(port));
+  console.log(`API server running on http://localhost:${port}`);
+}
+
+function cleanupDevPortFile(): void {
+  fs.rmSync(DEV_API_PORT_FILE, { force: true });
+}
+
+process.on('exit', cleanupDevPortFile);
+process.on('SIGINT', () => {
+  cleanupDevPortFile();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  cleanupDevPortFile();
+  process.exit(0);
 });
 
-server.on('error', (err: NodeJS.ErrnoException) => {
-  if (err.code === 'EADDRINUSE') {
-    console.error(`Porta ${PORT} già in uso. Termina l'altro processo oppure avvia con PORT=<altra_porta>.`);
-    process.exit(1);
-  }
-  throw err;
+startServer().catch((err) => {
+  console.error(err instanceof Error ? err.message : err);
+  process.exit(1);
 });

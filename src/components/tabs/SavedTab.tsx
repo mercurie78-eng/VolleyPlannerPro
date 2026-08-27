@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Plus, Trash2, Calendar, FolderOpen, ArrowDown, ArrowUp } from 'lucide-react';
+import { Plus, Trash2, Calendar, FolderOpen, ArrowDown, ArrowUp, Copy } from 'lucide-react';
 import { DateRangePicker, formatDateRangeLabel, type DateRange } from '../DateRangePicker';
 import { THEME_CLASSES } from '../../theme/constants';
 import { isParallelBlock } from '../../utils/session';
@@ -9,6 +9,7 @@ export interface SavedTabProps {
   savedSessions: SavedSession[];
   onNewSession: () => void;
   onDelete: (id: string) => Promise<void>;
+  onDuplicate: (session: SavedSession) => Promise<void>;
   onLoad: (session: SavedSession) => void;
 }
 
@@ -20,9 +21,10 @@ function formatSessionDate(isoDate: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function SavedTab({ savedSessions, onNewSession, onDelete, onLoad }: SavedTabProps) {
+export function SavedTab({ savedSessions, onNewSession, onDelete, onDuplicate, onLoad }: SavedTabProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [filterRange, setFilterRange] = useState<DateRange>({ start: '', end: '' });
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const sessionDates = useMemo(
     () => new Set(savedSessions.map((session) => session.date)),
@@ -54,6 +56,15 @@ export function SavedTab({ savedSessions, onNewSession, onDelete, onLoad }: Save
   const handleDelete = async (id: string, title: string) => {
     if (!window.confirm(`Eliminare "${title}" dall'archivio?`)) return;
     await onDelete(id);
+  };
+
+  const handleDuplicate = async (item: SavedSession) => {
+    setDuplicatingId(item.id);
+    try {
+      await onDuplicate(item);
+    } finally {
+      setDuplicatingId(null);
+    }
   };
 
   return (
@@ -198,13 +209,24 @@ export function SavedTab({ savedSessions, onNewSession, onDelete, onLoad }: Save
                   <Trash2 className="w-3.5 h-3.5" /> Elimina
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => onLoad(item)}
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow transition"
-                >
-                  <FolderOpen className="w-3.5 h-3.5" /> Carica nel Planner
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleDuplicate(item)}
+                    disabled={duplicatingId === item.id}
+                    className={`px-3 py-1.5 ${THEME_CLASSES.mutedButton} disabled:opacity-50 text-xs font-bold rounded-xl flex items-center gap-1.5 transition`}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    {duplicatingId === item.id ? 'Copia...' : 'Duplica'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onLoad(item)}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow transition"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" /> Carica nel Planner
+                  </button>
+                </div>
               </div>
             </div>
           ))}

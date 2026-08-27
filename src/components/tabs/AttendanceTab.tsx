@@ -3,6 +3,7 @@ import {
   Calendar,
   Check,
   ClipboardCheck,
+  FileWarning,
   Pencil,
   Plus,
   Save,
@@ -12,6 +13,10 @@ import {
   X,
 } from 'lucide-react';
 import { PlayerFormModal } from '../PlayerFormModal';
+import {
+  MedicalVisitReportModal,
+  type MedicalVisitAlert,
+} from '../MedicalVisitReportModal';
 import { DateRangePicker, formatDateRangeLabel, type DateRange } from '../DateRangePicker';
 import { THEME_CLASSES } from '../../theme/constants';
 import type { AttendanceRecord, Player, SavedSession } from '../../types';
@@ -85,11 +90,31 @@ export function AttendanceTab({
   const [filterRange, setFilterRange] = useState<DateRange>({ start: '', end: '' });
   const [localRecords, setLocalRecords] = useState<Map<string, AttendanceRecord>>(new Map());
   const [formPlayer, setFormPlayer] = useState<Player | 'new' | null>(null);
+  const [medicalReportAt, setMedicalReportAt] = useState<Date | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const activePlayers = useMemo(() => players.filter((p) => p.active), [players]);
   const selectedSession = savedSessions.find((s) => s.id === selectedSessionId);
+
+  const medicalVisitAlerts = useMemo((): MedicalVisitAlert[] => {
+    return players
+      .map((player) => {
+        const status = medicalVisitStatus(player.medicalVisitExpiry);
+        if (status !== 'expired' && status !== 'expiring') return null;
+        if (!player.medicalVisitExpiry) return null;
+        return {
+          player,
+          status,
+          expiry: player.medicalVisitExpiry,
+        };
+      })
+      .filter((alert): alert is MedicalVisitAlert => alert !== null)
+      .sort((a, b) => {
+        if (a.status !== b.status) return a.status === 'expired' ? -1 : 1;
+        return a.expiry.localeCompare(b.expiry) || playerFullName(a.player).localeCompare(playerFullName(b.player), 'it');
+      });
+  }, [players]);
 
   const sortedSessions = useMemo(
     () =>
@@ -223,6 +248,7 @@ export function AttendanceTab({
 
   return (
     <div className="space-y-4">
+      <div className={medicalReportAt ? 'print:hidden space-y-4' : 'space-y-4'}>
       <div className={`${THEME_CLASSES.card} rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4`}>
         <div>
           <h2 className="text-base font-bold text-theme-heading flex items-center gap-2">
@@ -510,13 +536,28 @@ export function AttendanceTab({
             <span className="text-xs text-theme-muted-text">
               {players.length} giocatori in rosa ({activePlayers.length} attivi)
             </span>
-            <button
-              type="button"
-              onClick={() => setFormPlayer('new')}
-              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
-            >
-              <Plus className="w-3.5 h-3.5" /> Nuovo Giocatore
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMedicalReportAt(new Date())}
+                className={`px-3.5 py-1.5 ${THEME_CLASSES.mutedButton} text-xs font-bold rounded-xl flex items-center gap-1.5 transition`}
+              >
+                <FileWarning className="w-3.5 h-3.5" />
+                Report Visite Mediche
+                {medicalVisitAlerts.length > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-md bg-rose-500/20 text-rose-300 text-[10px] font-bold">
+                    {medicalVisitAlerts.length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormPlayer('new')}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+              >
+                <Plus className="w-3.5 h-3.5" /> Nuovo Giocatore
+              </button>
+            </div>
           </div>
 
           {players.length === 0 ? (
@@ -524,59 +565,104 @@ export function AttendanceTab({
               Nessun giocatore in rosa. Aggiungi i componenti della squadra per registrare le presenze.
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {players.map((player) => (
-                <div key={player.id} className={`${THEME_CLASSES.card} rounded-2xl p-4 space-y-3`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="text-sm font-bold text-theme-heading">{playerFullName(player)}</h3>
-                      <p className="text-xs text-theme-muted-text">{player.role}</p>
-                    </div>
-                    {player.jerseyNumber != null && (
-                      <span className="px-2 py-1 rounded-lg bg-theme-muted text-theme-secondary font-mono text-xs font-bold">
-                        #{player.jerseyNumber}
-                      </span>
-                    )}
-                  </div>
+            <div className={`${THEME_CLASSES.card} rounded-2xl overflow-hidden`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[720px]">
+                  <thead>
+                    <tr className="border-b border-theme-border bg-theme-elevated/80">
+                      <th className="text-left px-4 py-3 text-[10px] font-bold text-theme-subtle uppercase tracking-wide">
+                        Giocatore
+                      </th>
+                      <th className="text-left px-4 py-3 text-[10px] font-bold text-theme-subtle uppercase tracking-wide">
+                        Ruolo
+                      </th>
+                      <th className="text-left px-4 py-3 text-[10px] font-bold text-theme-subtle uppercase tracking-wide hidden sm:table-cell">
+                        Maglia
+                      </th>
+                      <th className="text-left px-4 py-3 text-[10px] font-bold text-theme-subtle uppercase tracking-wide hidden md:table-cell">
+                        Stato
+                      </th>
+                      <th className="text-left px-4 py-3 text-[10px] font-bold text-theme-subtle uppercase tracking-wide">
+                        Visita medica
+                      </th>
+                      <th className="text-left px-4 py-3 text-[10px] font-bold text-theme-subtle uppercase tracking-wide hidden lg:table-cell">
+                        Note
+                      </th>
+                      <th className="text-right px-4 py-3 text-[10px] font-bold text-theme-subtle uppercase tracking-wide">
+                        Azioni
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...players]
+                      .sort((a, b) => playerFullName(a).localeCompare(playerFullName(b), 'it'))
+                      .map((player) => {
+                        const visitStatus = medicalVisitStatus(player.medicalVisitExpiry);
 
-                  {!player.active && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold">
-                      <X className="w-3 h-3" /> Non attivo
-                    </span>
-                  )}
-
-                  <p className={`text-xs ${MEDICAL_VISIT_STATUS_CLASSES[medicalVisitStatus(player.medicalVisitExpiry)]}`}>
-                    Visita medica:{' '}
-                    {player.medicalVisitExpiry
-                      ? formatSessionDate(player.medicalVisitExpiry)
-                      : 'non impostata'}
-                    {medicalVisitStatus(player.medicalVisitExpiry) === 'expiring' && ' (in scadenza)'}
-                    {medicalVisitStatus(player.medicalVisitExpiry) === 'expired' && ' (scaduta)'}
-                  </p>
-
-                  {player.notes && (
-                    <p className="text-xs text-theme-subtle italic">{player.notes}</p>
-                  )}
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormPlayer(player)}
-                      className={`flex-1 py-1.5 ${THEME_CLASSES.mutedButton} text-xs font-bold rounded-xl flex items-center justify-center gap-1 transition`}
-                    >
-                      <Pencil className="w-3.5 h-3.5" /> Modifica
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeletePlayer(player)}
-                      className="p-1.5 bg-theme-muted hover:bg-rose-500/20 text-rose-400 rounded-xl transition"
-                      aria-label="Elimina"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                        return (
+                          <tr
+                            key={player.id}
+                            className="border-b border-theme-border last:border-b-0 hover:bg-theme-muted/30 transition"
+                          >
+                            <td className="px-4 py-3">
+                              <span className="font-semibold text-theme-heading">{playerFullName(player)}</span>
+                            </td>
+                            <td className="px-4 py-3 text-theme-secondary">{player.role}</td>
+                            <td className="px-4 py-3 hidden sm:table-cell">
+                              {player.jerseyNumber != null ? (
+                                <span className="font-mono text-xs font-bold text-theme-secondary">
+                                  #{player.jerseyNumber}
+                                </span>
+                              ) : (
+                                <span className="text-theme-subtle">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 hidden md:table-cell">
+                              {player.active ? (
+                                <span className="inline-flex items-center gap-1 text-emerald-400 text-xs font-semibold">
+                                  <Check className="w-3.5 h-3.5" /> Attivo
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-amber-400 text-xs font-semibold">
+                                  <X className="w-3.5 h-3.5" /> Non attivo
+                                </span>
+                              )}
+                            </td>
+                            <td className={`px-4 py-3 text-xs ${MEDICAL_VISIT_STATUS_CLASSES[visitStatus]}`}>
+                              {player.medicalVisitExpiry
+                                ? formatSessionDate(player.medicalVisitExpiry)
+                                : 'Non impostata'}
+                              {visitStatus === 'expiring' && ' (in scadenza)'}
+                              {visitStatus === 'expired' && ' (scaduta)'}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-theme-subtle italic hidden lg:table-cell max-w-[220px] truncate">
+                              {player.notes || '—'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setFormPlayer(player)}
+                                  className={`px-3 py-1.5 ${THEME_CLASSES.mutedButton} text-xs font-bold rounded-xl flex items-center gap-1 transition`}
+                                >
+                                  <Pencil className="w-3.5 h-3.5" /> Modifica
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeletePlayer(player)}
+                                  className="p-1.5 bg-theme-muted hover:bg-rose-500/20 text-rose-400 rounded-xl transition"
+                                  aria-label={`Elimina ${playerFullName(player)}`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -587,6 +673,15 @@ export function AttendanceTab({
           player={formPlayer === 'new' ? null : formPlayer}
           onSave={handleFormSave}
           onClose={() => setFormPlayer(null)}
+        />
+      )}
+      </div>
+
+      {medicalReportAt && (
+        <MedicalVisitReportModal
+          alerts={medicalVisitAlerts}
+          generatedAt={medicalReportAt}
+          onClose={() => setMedicalReportAt(null)}
         />
       )}
     </div>

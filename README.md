@@ -14,14 +14,17 @@ parallel stations, plyometric load tracking, and printable court sheets.
   exercise (import or tactical editor), re-editable tactical diagrams,
   stable exercise IDs, and editable defaults for sets/reps and tabata
   timing
-- **Archive** — Save, load, and delete training sessions in SQLite;
-  sort newest/oldest; filter by date range; duplicate title/date
+- **Archive** — Save, load, duplicate, and delete training sessions in
+  SQLite; sort newest/oldest; filter by date range; duplicate title/date
   prompts before overwrite
-- **Attendance** — Player roster with medical visit expiry date,
-  per-session presence tracking linked to saved sessions, and date-range
-  filtering
-- **Print sheet** — Printable field schedule; exercise images (when
-  present) float beside the description with wrapped text; descriptions
+- **Attendance** — Player roster as a sortable list with calendar date
+  picker for medical visit expiry; per-session presence tracking linked
+  to saved sessions; date-range filtering; printable/copyable medical
+  visit report (expired / expiring within 30 days) formatted for WhatsApp
+- **Print sheet** — Print-optimized field schedule (full page width,
+  minimal margins, no app chrome); duration shown after category in the
+  module title; exercise images aligned with the title; sets/reps hidden
+  when zero; each exercise kept on one page when printing; descriptions
   preserve line breaks
 - **Tactical image editor** — Built-in 3D court editor to place players
   (A/S/O/C/L), draw straight or curved trajectory arrows, zoom the view,
@@ -51,9 +54,20 @@ npm run dev
 
 This starts:
 
-- **API** — [http://localhost:3001](http://localhost:3001)
-- **Web** — [http://localhost:8080](http://localhost:8080) (proxies
-  `/api` to the backend)
+- **API** — [http://localhost:3001](http://localhost:3001) by default
+- **Web** — [http://localhost:8080](http://localhost:8080) by default
+  (proxies `/api` to the backend)
+
+If **3001** or **8080** are already in use, `npm run dev` picks the
+next free ports automatically and wires the Vite proxy to the API
+instance that started. Check the terminal for the actual URLs (e.g.
+`http://localhost:8081/`).
+
+Override defaults if needed:
+
+```bash
+PORT=3002 VITE_PORT=8090 npm run dev
+```
 
 Open the web app in your browser. On first run the API seeds the
 exercise catalog, a sample session, and a sample player roster into
@@ -63,9 +77,9 @@ exercise catalog, a sample session, and a sample player roster into
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start API (:3001) and Vite dev server (:8080) |
-| `npm run dev:web` | Frontend only |
-| `npm run dev:server` | API only with hot reload |
+| `npm run dev` | Start API then web via `scripts/dev.ts`; auto-fallback ports |
+| `npm run dev:web` | Frontend only (uses `API_PORT` / `PORT` for proxy target) |
+| `npm run dev:server` | API only with hot reload; auto-fallback if port busy |
 | `npm run build` | Type-check and build frontend → `dist/` |
 | `npm run preview` | Serve the production build locally |
 | `npm run start:server` | Run API without watch (production) |
@@ -223,9 +237,13 @@ Deleting a saved session or player removes related attendance rows
 ## Project structure
 
 ```
+scripts/
+└── dev.ts            # Dev orchestrator: port selection, API then web
+
 server/
 ├── index.ts          # Express API routes
 ├── db.ts             # SQLite schema and queries
+├── port.ts           # Available-port detection and listen helpers
 ├── seed.ts           # Initial catalog, sample session, sample roster
 └── images.ts         # Image upload and storage
 
@@ -243,6 +261,7 @@ src/
 ├── utils/
 │   ├── session.ts        # Timeline helpers, category grouping
 │   ├── sessionStorage.ts # Session ↔ DB ref serialization
+│   ├── savedSession.ts   # Save identity checks, session duplication
 │   ├── exerciseId.ts     # ID format ex-cccc-nnn and next-id helpers
 │   ├── jumps.ts          # Jump load calculations
 │   ├── roles.ts          # Role-based player counts
@@ -250,6 +269,8 @@ src/
 └── components/
     ├── DateRangePicker.tsx         # Calendar date / range picker
     ├── ExerciseFormModal.tsx       # Exercise CRUD form
+    ├── PlayerFormModal.tsx         # Player CRUD form
+    ├── MedicalVisitReportModal.tsx # Medical visit expiry report
     ├── ExerciseImageCreatorModal.tsx # Tactical court image editor
     ├── ExerciseImage.tsx
     ├── SessionTimelineItem.tsx
@@ -294,9 +315,11 @@ Court modules live under `src/tactical-court/` (`scene.ts`, `players.ts`,
 
 ## Debug in VS Code / Cursor
 
-1. Run `npm run dev` in a terminal.
+1. Run `npm run dev` in a terminal and note the **web** URL printed by
+   Vite (may differ from 8080 if the port is busy).
 2. Use **Run → Launch Chrome against localhost** (F5) — configured for
-   `http://localhost:8080`.
+   `http://localhost:8080`; change `.vscode/launch.json` if another
+   port is used.
 
 ## Tech stack
 

@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { ROLES } from '../data/constants';
 import { THEME_CLASSES } from '../theme/constants';
 import type { Player } from '../types';
+import { DatePicker } from './DateRangePicker';
 
 export interface PlayerFormModalProps {
   player: Player | null;
@@ -132,16 +133,16 @@ export function PlayerFormModal({ player, onSave, onClose }: PlayerFormModalProp
             <label className="block text-[10px] font-bold text-theme-subtle uppercase mb-1">
               Scadenza visita medica
             </label>
-            <input
-              type="date"
+            <DatePicker
               value={form.medicalVisitExpiry ?? ''}
-              onChange={(e) =>
+              onChange={(value) =>
                 setForm((prev) => ({
                   ...prev,
-                  medicalVisitExpiry: e.target.value === '' ? null : e.target.value,
+                  medicalVisitExpiry: value === '' ? null : value,
                 }))
               }
-              className={`w-full ${THEME_CLASSES.input} text-sm rounded-lg px-3 py-2`}
+              className="w-full"
+              allowClear
             />
           </div>
 

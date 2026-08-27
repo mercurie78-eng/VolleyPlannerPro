@@ -2,5 +2,6 @@ node_modules
 dist
 /data/
 *.local
+.dev-api-port
 tsconfig.tsbuildinfo
 logmsg

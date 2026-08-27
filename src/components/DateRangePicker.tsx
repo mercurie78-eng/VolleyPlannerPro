@@ -286,9 +286,18 @@ export interface DatePickerProps {
   onChange: (value: string) => void;
   highlightedDates?: Set<string>;
   compact?: boolean;
+  className?: string;
+  allowClear?: boolean;
 }
 
-export function DatePicker({ value, onChange, highlightedDates, compact = false }: DatePickerProps) {
+export function DatePicker({
+  value,
+  onChange,
+  highlightedDates,
+  compact = false,
+  className = '',
+  allowClear = false,
+}: DatePickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => {
@@ -345,7 +354,7 @@ export function DatePicker({ value, onChange, highlightedDates, compact = false 
         onClick={() => setOpen((prev) => !prev)}
         className={`flex items-center gap-2 bg-theme-elevated border border-theme-border rounded-xl transition hover:border-emerald-500/40 text-theme-heading ${
           compact ? 'px-3 py-1.5 text-xs' : 'px-3 py-2 text-sm'
-        }`}
+        } ${className}`}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
@@ -429,6 +438,19 @@ export function DatePicker({ value, onChange, highlightedDates, compact = false 
             <p className="text-[10px] text-theme-muted-text">
               I puntini indicano giorni con allenamenti salvati.
             </p>
+          )}
+
+          {allowClear && value && (
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setOpen(false);
+              }}
+              className={`w-full py-1.5 text-xs font-semibold rounded-lg ${THEME_CLASSES.mutedButton} transition`}
+            >
+              Cancella data
+            </button>
           )}
         </div>
       )}
