@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import * as THREE from 'three';
 import { ARROW_COLOR, CURVE_STRENGTH, MIN_ARROW_LENGTH } from './constants';
 import { createTextSprite, disposeSprite } from './sprites';

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { useCallback, useState } from 'react';
 import * as attendanceApi from '../api/attendance';
 import type { AttendanceRecord, SessionAttendance } from '../types';

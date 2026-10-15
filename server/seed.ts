@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import type Database from 'better-sqlite3';
 import { buildSampleSavedSession } from '../src/data/presets.js';
 import { SEED_EXERCISES } from '../src/data/exercises.js';

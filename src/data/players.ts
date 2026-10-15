@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import type { Player } from '../types';
 
 export const SEED_PLAYERS: Player[] = [

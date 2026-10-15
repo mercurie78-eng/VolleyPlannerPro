@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import type { Exercise } from '../types';
 
 /** ID stabili del catalogo seed (formato ex-cccc-nnn). */

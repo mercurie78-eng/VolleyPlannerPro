@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import * as THREE from 'three';
 import { createArrow, disposeArrow, type ArrowUserData, type CurveType } from './arrows';
 import type { PlayerType } from './constants';

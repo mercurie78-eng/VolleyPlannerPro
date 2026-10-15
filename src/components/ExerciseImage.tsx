@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { ImageIcon } from 'lucide-react';
 import type { Exercise } from '../types';
 

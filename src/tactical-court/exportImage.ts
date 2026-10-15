@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import type { WebGLRenderer } from 'three';
 
 export async function captureRendererAsFile(

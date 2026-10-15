@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 export function formatSetsRepsLabel(
   sets?: number | null,
   reps?: number | null,

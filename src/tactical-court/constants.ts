@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 export const COURT_LENGTH = 18;
 export const COURT_WIDTH = 9;
 export const ATTACK_ZONE = 3;

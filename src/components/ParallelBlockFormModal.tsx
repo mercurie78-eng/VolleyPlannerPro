@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { useMemo, useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { ROLES } from '../data/constants';

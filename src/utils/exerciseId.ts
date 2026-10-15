@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { CATEGORIES, type CategoryName } from '../data/constants';
 
 /** Codice a 4 lettere per categoria → prefisso ID (ex-risc-001). */

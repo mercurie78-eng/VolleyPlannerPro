@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';

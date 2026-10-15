@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { useMemo, useState } from 'react';
 import { Save, CopyPlus, Check, Zap, Layers, Search } from 'lucide-react';
 import { DatePicker } from '../DateRangePicker';

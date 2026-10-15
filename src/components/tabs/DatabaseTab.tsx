@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { useMemo, useState } from 'react';
 import { Plus, Dumbbell, Pencil, Trash2 } from 'lucide-react';
 import { CategoryBadge } from '../CategoryBadge';

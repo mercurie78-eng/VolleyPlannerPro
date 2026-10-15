@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { DEFAULT_THEME, THEME_MODES, THEME_STORAGE_KEY, type ThemeMode } from './constants';
 

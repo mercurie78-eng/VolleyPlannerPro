@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { useCallback, useEffect, useState } from 'react';
 import * as sessionsApi from '../api/sessions';
 import type { SavedSession } from '../types';

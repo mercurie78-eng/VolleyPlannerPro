@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { toParallelBlock, toParallelStation, toSessionExercise } from '../utils/session';
 import { DEFAULT_SESSION_START_TIME } from './constants';
 import { EXERCISE_IDS } from './exercises.js';

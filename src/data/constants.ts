@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 export const DEFAULT_SESSION_TARGET_MINUTES = 120;
 
 /** Orario di inizio allenamento di default (HH:mm). */

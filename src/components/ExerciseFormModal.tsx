@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { useEffect, useState } from 'react';
 import { ImagePlus, PenLine, Trash2, X } from 'lucide-react';
 import { CATEGORIES, EXERCISE_TYPES, INTENSITIES, isAnalyticCategory } from '../data/constants';

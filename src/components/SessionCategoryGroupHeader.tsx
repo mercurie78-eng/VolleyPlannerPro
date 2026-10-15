@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { memo } from 'react';
 import { CategoryBadge } from './CategoryBadge';
 import { THEME_CLASSES } from '../theme/constants';

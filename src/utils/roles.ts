@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { ROLES, ROLE_PLAYER_COUNTS, TEAM_SIZE } from '../data/constants';
 
 export const ROLE_LABEL_SEPARATOR = ' / ';

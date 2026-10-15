@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { Clock, Dumbbell, Calendar, Printer, Sun, Moon, ClipboardCheck } from 'lucide-react';
 import { THEME_CLASSES, THEME_LABELS } from '../theme/constants';
 import { useTheme } from '../theme/useTheme';

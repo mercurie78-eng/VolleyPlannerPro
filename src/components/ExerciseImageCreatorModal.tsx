@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Minus, PenLine, Plus, Trash2, X } from 'lucide-react';
 import type * as THREE from 'three';

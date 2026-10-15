@@ -339,3 +339,8 @@ Court modules live under `src/tactical-court/` (`scene.ts`, `players.ts`,
 - Three.js (tactical court editor)
 - Express + better-sqlite3
 - [Lucide](https://lucide.dev/) icons
+
+## License
+
+VolleyPlanner PRO is licensed under the **GNU General Public License v3.0**
+(or later). See [LICENSE](LICENSE) for the full text.

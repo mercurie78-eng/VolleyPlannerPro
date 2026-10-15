@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 const API_BASE = '/api';
 
 async function handleResponse<T>(response: Response): Promise<T> {

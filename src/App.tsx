@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { AppHeader } from './components/AppHeader';
 import { AttendanceTab } from './components/tabs/AttendanceTab';

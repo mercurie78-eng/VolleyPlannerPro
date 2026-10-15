@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Fabio Bellintani
+
 import { useContext } from 'react';
 import { ThemeContext, type ThemeContextValue } from './ThemeProvider';
 
