@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Plus, Trash2, Calendar, FolderOpen, ArrowDown, ArrowUp, Copy } from 'lucide-react';
 import { DateRangePicker, formatDateRangeLabel, type DateRange } from '../DateRangePicker';
 import { THEME_CLASSES } from '../../theme/constants';
-import { isParallelBlock } from '../../utils/session';
+import { isParallelBlock, getSessionItemMinutes } from '../../utils/session';
 import type { SavedSession } from '../../types';
 
 export interface SavedTabProps {
@@ -174,6 +174,8 @@ export function SavedTab({ savedSessions, onNewSession, onDelete, onDuplicate, o
                     <Calendar className="w-3.5 h-3.5" /> {formatSessionDate(item.date)}
                   </span>
                   <div className="flex items-center gap-3 text-xs text-theme-muted-text font-mono">
+                    {item.startTime && <span>{item.startTime}</span>}
+                    {item.startTime && <span>•</span>}
                     <span>{item.totalMinutes} / {item.targetMinutes ?? 120} min</span>
                     <span>•</span>
                     <span className="text-purple-400">~{item.totalJumps} salti</span>
@@ -193,7 +195,7 @@ export function SavedTab({ savedSessions, onNewSession, onDelete, onDuplicate, o
                         <span className="text-theme-secondary font-semibold">
                           {isParallelBlock(ex) ? ex.parallelTitle : ex.title}
                         </span>{' '}
-                        ({ex.sessionDuration || ('durationMin' in ex ? ex.durationMin : 0)}m)
+                        ({getSessionItemMinutes(ex)}m)
                       </li>
                     ))}
                   </ul>

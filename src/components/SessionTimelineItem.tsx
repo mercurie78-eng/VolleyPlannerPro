@@ -6,8 +6,13 @@ import { ExerciseImage } from './ExerciseImage';
 import { ItemControls } from './ItemControls';
 import { RoleMultiSelect } from './RoleMultiSelect';
 import { THEME_CLASSES } from '../theme/constants';
-import { isParallelBlock } from '../utils/session';
-import { formatWorkRestLabel } from '../utils/tabata';
+import { isParallelBlock, getSessionItemMinutes } from '../utils/session';
+import {
+  computeTabataDurationMinutes,
+  computeTabataTotalSeconds,
+  formatWorkRestLabel,
+  isTabataTiming,
+} from '../utils/tabata';
 import { sessionItemJumps, stationJumps } from '../utils/jumps';
 import { countPlayersForRoleLabel, countPlayersForRoles } from '../utils/roles';
 import type { SessionItem } from '../types';
@@ -115,10 +120,10 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
                     <input
                       type="number"
                       min={0}
-                      placeholder="—"
-                      value={st.sets ?? ''}
+                      value={st.sets}
                       onChange={(e) => onParallelStationSetsChange(index, stationIndex, e.target.value)}
                       className={`w-10 ${numberInputClass}`}
+                      title="Serie in questa seduta"
                     />
                   </label>
                   <label className="flex items-center gap-1 text-theme-muted-text">
@@ -126,10 +131,10 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
                     <input
                       type="number"
                       min={0}
-                      placeholder="—"
-                      value={st.reps ?? ''}
+                      value={st.reps}
                       onChange={(e) => onParallelStationRepsChange(index, stationIndex, e.target.value)}
                       className={`w-10 ${numberInputClass}`}
+                      title="Ripetizioni in questa seduta"
                     />
                   </label>
                   <label className="flex items-center gap-1 text-theme-muted-text">
@@ -137,11 +142,10 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
                     <input
                       type="number"
                       min={0}
-                      placeholder="—"
-                      value={(st.workSeconds ?? st.exercise.workSeconds) || ''}
+                      value={st.workSeconds || ''}
                       onChange={(e) => onParallelStationWorkSecondsChange(index, stationIndex, e.target.value)}
                       className={`w-10 ${numberInputClass}`}
-                      title="Secondi di lavoro"
+                      title="Secondi di lavoro in questa seduta"
                     />
                   </label>
                   <label className="flex items-center gap-1 text-theme-muted-text">
@@ -149,11 +153,10 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
                     <input
                       type="number"
                       min={0}
-                      placeholder="—"
-                      value={(st.restSeconds ?? st.exercise.restSeconds) || ''}
+                      value={st.restSeconds || ''}
                       onChange={(e) => onParallelStationRestSecondsChange(index, stationIndex, e.target.value)}
                       className={`w-10 ${numberInputClass}`}
-                      title="Secondi di pausa"
+                      title="Secondi di pausa in questa seduta"
                     />
                   </label>
                 </div>
@@ -179,11 +182,17 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
             <p className="text-[10px] font-mono text-theme-subtle mt-0.5">{item.exerciseId}</p>
           </div>
           <ItemControls
-            duration={item.sessionDuration || item.durationMin}
+            duration={getSessionItemMinutes(item)}
             onDurationChange={(val) => onDurationChange(index, val)}
             onMoveUp={() => onMove(index, -1)}
             onMoveDown={() => onMove(index, 1)}
             onRemove={() => onRemove(index)}
+            durationLocked={isTabataTiming(item.workSeconds, item.restSeconds, item.sets)}
+            durationTitle={
+              isTabataTiming(item.workSeconds, item.restSeconds, item.sets)
+                ? `Calcolato da tabata (${computeTabataTotalSeconds(item.workSeconds, item.restSeconds, item.sets, item.reps)}s)`
+                : undefined
+            }
           />
         </div>
         <ExerciseImage exercise={item} fit="contain" className="w-full h-36 sm:h-44" hideIfMissing />
@@ -212,6 +221,7 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
               value={item.reps}
               onChange={(e) => onRepsChange(index, e.target.value)}
               className={`w-12 ${numberInputClass}`}
+              title="Esercizi nel circuito tabata"
             />
           </label>
           <label className="flex items-center gap-1.5 text-theme-muted-text">
@@ -241,9 +251,17 @@ export const SessionTimelineItem = memo(function SessionTimelineItem({
             <span className="text-[10px]">s</span>
           </label>
         </div>
-        {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets) && (
+        {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets, item.reps) && (
           <p className="text-[10px] font-mono text-cyan-400">
-            Tabata: {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets)}
+            Tabata: {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets, item.reps)}
+            {computeTabataTotalSeconds(item.workSeconds, item.restSeconds, item.sets, item.reps) != null && (
+              <>
+                {' '}
+                → {computeTabataTotalSeconds(item.workSeconds, item.restSeconds, item.sets, item.reps)}s
+                {' '}
+                ({computeTabataDurationMinutes(item.workSeconds, item.restSeconds, item.sets, item.reps)} min)
+              </>
+            )}
           </p>
         )}
         <input

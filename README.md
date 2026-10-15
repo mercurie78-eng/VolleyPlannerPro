@@ -5,26 +5,30 @@ parallel stations, plyometric load tracking, and printable court sheets.
 
 ## Features
 
-- **Planner** — Build sessions with calendar date picker, reorderable
-  timeline grouped by category (with per-category minute totals),
-  duration and notes per exercise, sets/reps, tabata work/rest times,
-  parallel station blocks, and K1/K2 presets
+- **Planner** — Build sessions with calendar date picker, session start
+  time (default 21:00), reorderable timeline grouped by category (with
+  per-category minute totals), per-session duration/sets/reps/tabata
+  work/rest (initialized from catalog defaults, then independent),
+  notes, parallel station blocks, K1/K2 presets, **Salva** (overwrite
+  loaded archive entry or match by title+date) and **Salva come…**
 - **Exercise database** — CRUD catalog with category and (for *Tecnica
   Analitica*) exercise-type filters, role search, optional image per
   exercise (import or tactical editor), re-editable tactical diagrams,
-  stable exercise IDs, and editable defaults for sets/reps and tabata
-  timing
+  stable exercise IDs, and **default** duration/sets/reps/tabata timing
+  used only when an exercise is first added to a session
 - **Archive** — Save, load, duplicate, and delete training sessions in
-  SQLite; sort newest/oldest; filter by date range; duplicate title/date
-  prompts before overwrite
+  SQLite; sort newest/oldest; filter by date range; overwrite prompts
+  when title+date already exist
 - **Attendance** — Player roster as a sortable list with calendar date
   picker for medical visit expiry; per-session presence tracking linked
   to saved sessions; date-range filtering; printable/copyable medical
   visit report (expired / expiring within 30 days) formatted for WhatsApp
 - **Print sheet** — Print-optimized field schedule (full page width,
-  minimal margins, no app chrome); duration shown after category in the
-  module title; exercise images aligned with the title; sets/reps hidden
-  when zero; each exercise kept on one page when printing; descriptions
+  minimal margins, no app chrome); session start time in the header;
+  each module shows a computed start time from session start plus
+  cumulative durations; duration shown after category in the module
+  title; exercise images aligned with the title; sets/reps hidden when
+  zero; each exercise kept on one page when printing; descriptions
   preserve line breaks
 - **Tactical image editor** — Built-in 3D court editor to place players
   (A/S/O/C/L), draw straight or curved trajectory arrows, zoom the view,
@@ -34,8 +38,13 @@ parallel stations, plyometric load tracking, and printable court sheets.
   weighted by role assignment
 - **Theme** — Dark and light mode
 
-Saved sessions store exercise references, not full snapshots: updating
-an exercise in the catalog updates it everywhere it is used.
+Saved sessions store exercise **references** plus **per-session load**
+(duration, sets, reps, tabata work/rest). Editing an exercise in the
+catalog updates shared content (title, description, image, etc.) in
+open and archived sessions, but not load values already saved on each
+session item. Tabata duration in a session is derived from work, rest,
+series, and repetitions (exercises in the circuit) when tabata timing
+applies.
 
 ## Requirements
 
@@ -148,15 +157,16 @@ Archived training plans from the **Planner** / **Archivio** tabs.
 | `date` | TEXT | ISO date `YYYY-MM-DD` |
 | `title` | TEXT | |
 | `focus` | TEXT | Session focus / objectives |
+| `start_time` | TEXT | Session start clock time (`HH:mm`, default `21:00`) |
 | `target_minutes` | INTEGER | Planned session length |
 | `total_minutes` | INTEGER | Sum of item durations (persisted, recomputed on read) |
 | `total_jumps` | INTEGER | Estimated jump load (persisted, recomputed on read) |
 | `items` | TEXT | JSON array of session item **references** (see below) |
 | `created_at` | TEXT | SQLite `datetime('now')`, set on insert |
 
-**`items` JSON format** — references into `exercises`, not full
-snapshots. Updating an exercise in the catalog updates it everywhere it
-is used. Serialized by `src/utils/sessionStorage.ts`:
+**`items` JSON format** — references into `exercises` plus per-item
+load fields (not full exercise snapshots). Serialized by
+`src/utils/sessionStorage.ts`:
 
 ```json
 [
@@ -265,7 +275,7 @@ src/
 │   ├── exerciseId.ts     # ID format ex-cccc-nnn and next-id helpers
 │   ├── jumps.ts          # Jump load calculations
 │   ├── roles.ts          # Role-based player counts
-│   └── tabata.ts         # Work/rest label formatting
+│   └── tabata.ts         # Tabata labels and duration from work/rest/sets/reps
 └── components/
     ├── DateRangePicker.tsx         # Calendar date / range picker
     ├── ExerciseFormModal.tsx       # Exercise CRUD form

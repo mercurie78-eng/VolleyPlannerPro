@@ -1,14 +1,17 @@
+import { useMemo } from 'react';
 import { Printer } from 'lucide-react';
 import { CategoryBadge } from '../CategoryBadge';
 import { ExerciseImage } from '../ExerciseImage';
-import { isParallelBlock } from '../../utils/session';
+import { computeSessionSchedule, getSessionItemMinutes, isParallelBlock } from '../../utils/session';
 import { formatSetsRepsLabel, formatWorkRestLabel } from '../../utils/tabata';
+import { DEFAULT_SESSION_START_TIME } from '../../data/constants';
 import type { SessionItem } from '../../types';
 
 export interface PrintTabProps {
   sessionTitle: string;
   sessionFocus: string;
   sessionDate: string;
+  sessionStartTime: string;
   sessionTargetMinutes: number;
   totalMinutes: number;
   totalJumps: number;
@@ -19,11 +22,17 @@ export function PrintTab({
   sessionTitle,
   sessionFocus,
   sessionDate,
+  sessionStartTime,
   sessionTargetMinutes,
   totalMinutes,
   totalJumps,
   session,
 }: PrintTabProps) {
+  const schedule = useMemo(
+    () => computeSessionSchedule(session, sessionStartTime || DEFAULT_SESSION_START_TIME),
+    [session, sessionStartTime]
+  );
+
   return (
     <div className="space-y-4 max-w-4xl mx-auto print:max-w-none print:mx-0 print:space-y-0">
       <div className="flex justify-end gap-2 print:hidden">
@@ -44,6 +53,7 @@ export function PrintTab({
           </div>
           <div className="text-right text-xs text-slate-600 font-mono">
             <p><strong>Data:</strong> {sessionDate}</p>
+            <p><strong>Inizio:</strong> {sessionStartTime || DEFAULT_SESSION_START_TIME}</p>
             <p><strong>Durata:</strong> {totalMinutes} / {sessionTargetMinutes} min</p>
             <p><strong>Carico Salti:</strong> ~{totalJumps} salti/giocatore (media squadra pesata per ruolo)</p>
           </div>
@@ -53,6 +63,8 @@ export function PrintTab({
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-1 print:pb-0.5 print:mb-0">Programma dell&apos;Allenamento</h3>
 
           {session.map((item, idx) => {
+            const slot = schedule[idx];
+            const timeLabel = slot ? `${slot.startTime}` : '';
             const setsRepsLabel = !isParallelBlock(item)
               ? formatSetsRepsLabel(item.sets, item.reps)
               : null;
@@ -62,6 +74,7 @@ export function PrintTab({
               {isParallelBlock(item) ? (
                 <div className="space-y-2">
                   <div className="font-bold text-xs text-emerald-800">
+                    {timeLabel && <span className="font-mono text-slate-700">{timeLabel} </span>}
                     MODULO {idx + 1}: {item.parallelTitle} (STAZIONI PARALLELE) ({item.sessionDuration} MIN)
                   </div>
                   <div className="grid grid-cols-3 gap-2">
@@ -84,15 +97,17 @@ export function PrintTab({
                           </span>
                         )}
                         {formatWorkRestLabel(
-                          st.workSeconds ?? st.exercise.workSeconds,
-                          st.restSeconds ?? st.exercise.restSeconds,
-                          st.sets ?? st.exercise.sets
+                          st.workSeconds,
+                          st.restSeconds,
+                          st.sets,
+                          st.reps
                         ) && (
                           <span className="block font-semibold text-cyan-700 mt-0.5">
                             {formatWorkRestLabel(
-                              st.workSeconds ?? st.exercise.workSeconds,
-                              st.restSeconds ?? st.exercise.restSeconds,
-                              st.sets ?? st.exercise.sets
+                              st.workSeconds,
+                              st.restSeconds,
+                              st.sets,
+                              st.reps
                             )}
                           </span>
                         )}
@@ -114,9 +129,10 @@ export function PrintTab({
                     </div>
                   )}
                   <div className="font-bold text-xs text-slate-900">
+                    {timeLabel && <span className="font-mono text-slate-700">{timeLabel} </span>}
                     MODULO {idx + 1}: {item.title} (
                     <CategoryBadge category={item.category} variant="print" className="inline" />
-                    ) ({item.sessionDuration || item.durationMin} MIN)
+                    ) ({getSessionItemMinutes(item)} MIN)
                   </div>
                   <div className="mt-1">
                     <p className="text-xs text-slate-600 whitespace-pre-wrap">{item.description}</p>
@@ -125,9 +141,9 @@ export function PrintTab({
                         {setsRepsLabel}
                       </p>
                     )}
-                    {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets) && (
+                    {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets, item.reps) && (
                       <p className="text-xs font-semibold text-cyan-700 mt-0.5">
-                        Tabata: {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets)}
+                        Tabata: {formatWorkRestLabel(item.workSeconds, item.restSeconds, item.sets, item.reps)}
                       </p>
                     )}
                     {item.notes && <p className="text-xs italic text-emerald-700 mt-0.5">Note: {item.notes}</p>}

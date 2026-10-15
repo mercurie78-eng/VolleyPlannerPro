@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Save, Check, Zap, Layers, Search } from 'lucide-react';
+import { Save, CopyPlus, Check, Zap, Layers, Search } from 'lucide-react';
 import { DatePicker } from '../DateRangePicker';
 import { SessionTimelineItem } from '../SessionTimelineItem';
 import { SessionCategoryGroupHeader } from '../SessionCategoryGroupHeader';
@@ -7,7 +7,7 @@ import { ExercisePickerCard } from '../ExercisePickerCard';
 import { ExerciseFormModal } from '../ExerciseFormModal';
 import { ParallelBlockFormModal } from '../ParallelBlockFormModal';
 import { AddParallelStationModal } from '../AddParallelStationModal';
-import { CATEGORIES, EXERCISE_TYPES, ROLES, ANALYTIC_CATEGORY } from '../../data/constants';
+import { CATEGORIES, EXERCISE_TYPES, ROLES, ANALYTIC_CATEGORY, DEFAULT_SESSION_START_TIME } from '../../data/constants';
 import { THEME_CLASSES } from '../../theme/constants';
 import { groupSessionByCategorySequence, isParallelBlock, suggestExerciseRole } from '../../utils/session';
 import type { SaveExerciseOptions } from '../../api/exercises';
@@ -17,8 +17,11 @@ export interface BuilderTabProps {
   sessionTitle: string;
   sessionFocus: string;
   sessionDate: string;
+  sessionStartTime: string;
   sessionTargetMinutes: number;
   saveToast: boolean;
+  /** True se è caricato un allenamento già in archivio (Salva lo sovrascrive). */
+  canOverwriteLoadedSession: boolean;
   totalMinutes: number;
   totalJumps: number;
   session: SessionItem[];
@@ -31,8 +34,10 @@ export interface BuilderTabProps {
   onSessionTitleChange: (value: string) => void;
   onSessionFocusChange: (value: string) => void;
   onSessionDateChange: (value: string) => void;
+  onSessionStartTimeChange: (value: string) => void;
   onSessionTargetMinutesChange: (value: number) => void;
   onSave: () => void;
+  onSaveAs: () => void;
   onGeneratePreset: (type: 'k1' | 'k2') => void;
   onDurationChange: (index: number, value: string) => void;
   onSetsChange: (index: number, value: string) => void;
@@ -73,8 +78,10 @@ export function BuilderTab({
   sessionTitle,
   sessionFocus,
   sessionDate,
+  sessionStartTime,
   sessionTargetMinutes,
   saveToast,
+  canOverwriteLoadedSession,
   totalMinutes,
   totalJumps,
   session,
@@ -87,8 +94,10 @@ export function BuilderTab({
   onSessionTitleChange,
   onSessionFocusChange,
   onSessionDateChange,
+  onSessionStartTimeChange,
   onSessionTargetMinutesChange,
   onSave,
+  onSaveAs,
   onGeneratePreset,
   onDurationChange,
   onSetsChange,
@@ -208,18 +217,45 @@ export function BuilderTab({
                 highlightedDates={highlightedSessionDates}
                 compact
               />
-              <button
-                type="button"
-                onClick={onSave}
-                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow transition"
-              >
-                {saveToast ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-                {saveToast ? 'Salvato!' : 'Salva in Archivio'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onSave}
+                  title={
+                    canOverwriteLoadedSession
+                      ? 'Sovrascrive l’allenamento caricato dall’archivio'
+                      : 'Salva in archivio (sovrascrive se titolo e data coincidono)'
+                  }
+                  className="flex-1 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow transition"
+                >
+                  {saveToast ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                  {saveToast ? 'Salvato!' : canOverwriteLoadedSession ? 'Salva' : 'Salva in Archivio'}
+                </button>
+                <button
+                  type="button"
+                  onClick={onSaveAs}
+                  title="Salva come nuovo allenamento (o sovrascrivi un altro con stesso titolo e data)"
+                  className="flex-1 px-3.5 py-1.5 bg-theme-elevated hover:bg-theme-muted border border-theme-border text-theme-heading text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition"
+                >
+                  <CopyPlus className="w-3.5 h-3.5" />
+                  Salva come…
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-theme-border">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-theme-border">
+            <div className="bg-theme-elevated/80 rounded-xl p-3 border border-theme-border">
+              <span className="text-[10px] text-theme-muted-text uppercase font-semibold block">Orario Inizio</span>
+              <input
+                type="time"
+                value={sessionStartTime}
+                onChange={(e) => onSessionStartTimeChange(e.target.value || DEFAULT_SESSION_START_TIME)}
+                className="mt-0.5 w-full bg-theme-input border border-theme-border text-lg font-black font-mono text-theme-heading rounded py-0.5 px-1.5 focus:outline-none focus:border-emerald-500"
+                aria-label="Orario di inizio allenamento"
+              />
+            </div>
+
             <div className="bg-theme-elevated/80 rounded-xl p-3 border border-theme-border">
               <span className="text-[10px] text-theme-muted-text uppercase font-semibold block">Tempo Totale</span>
               <div className={`text-lg font-black font-mono flex items-baseline gap-1 ${totalMinutes > sessionTargetMinutes ? 'text-amber-400' : 'text-emerald-400'}`}>

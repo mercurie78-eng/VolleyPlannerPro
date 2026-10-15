@@ -5,6 +5,7 @@ import { THEME_CLASSES } from '../theme/constants';
 import { RoleMultiSelect } from './RoleMultiSelect';
 import { formatRoleLabel } from '../utils/roles';
 import type { Exercise, ParallelStation } from '../types';
+import { toParallelStation } from '../utils/session';
 
 export interface ParallelBlockFormModalProps {
   exercises: Exercise[];
@@ -103,14 +104,9 @@ export function ParallelBlockFormModal({
         setValidationError('Ogni stazione deve avere esercizio e ruolo compilati.');
         return;
       }
-      completeStations.push({
-        role: station.role.trim(),
-        exercise,
-        sets: exercise.sets,
-        reps: exercise.reps,
-        workSeconds: exercise.workSeconds,
-        restSeconds: exercise.restSeconds,
-      });
+      completeStations.push(
+        toParallelStation(station.role.trim(), exercise)
+      );
     }
 
     if (completeStations.length < 2) {

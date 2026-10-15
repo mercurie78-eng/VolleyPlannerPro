@@ -1,4 +1,5 @@
 import type { SavedSession } from '../types';
+import { DEFAULT_SESSION_START_TIME } from '../data/constants';
 import { cloneSession, computeSessionTotals, withFreshSessionIds } from './session';
 
 export const DEFAULT_SESSION_TITLE = 'Sessione Senza Titolo';
@@ -53,6 +54,7 @@ export function duplicateSavedSession(source: SavedSession, sessions: SavedSessi
     date,
     title: buildCopyTitle(source.title, sessions, date),
     focus: source.focus,
+    startTime: source.startTime || DEFAULT_SESSION_START_TIME,
     targetMinutes: source.targetMinutes,
     totalMinutes,
     totalJumps,

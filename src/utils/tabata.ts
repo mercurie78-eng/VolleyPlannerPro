@@ -18,7 +18,8 @@ export function formatSetsRepsLabel(
 export function formatWorkRestLabel(
   workSeconds: number,
   restSeconds: number,
-  sets?: number
+  sets?: number,
+  reps?: number
 ): string | null {
   if (workSeconds <= 0 && restSeconds <= 0) return null;
 
@@ -27,8 +28,59 @@ export function formatWorkRestLabel(
   const timing = [work, rest].filter(Boolean).join(' / ');
   if (!timing) return null;
 
-  if (sets != null && sets > 0) {
-    return `${sets}× (${timing})`;
+  const rounds = sets != null && sets > 0 ? sets : 0;
+  if (rounds <= 0) return timing;
+
+  const exercisesPerRound = reps != null && reps > 1 ? reps : null;
+  if (exercisesPerRound != null) {
+    return `${rounds}×${exercisesPerRound} (${timing})`;
   }
-  return timing;
+  return `${rounds}× (${timing})`;
+}
+
+/** True se l'esercizio usa timing tabata (lavoro + serie). */
+export function isTabataTiming(
+  workSeconds: number,
+  restSeconds: number,
+  sets: number
+): boolean {
+  return workSeconds > 0 && sets > 0 && restSeconds >= 0;
+}
+
+/**
+ * Intervalli di lavoro tabata: serie × ripetizioni (esercizi nel circuito).
+ * Se ripetizioni è 0/assente, conta come 1 (compatibilità).
+ */
+export function computeTabataIntervals(sets: number, reps?: number | null): number {
+  if (sets <= 0) return 0;
+  return sets * Math.max(1, reps ?? 0);
+}
+
+/**
+ * Totale secondi tabata:
+ * (serie × ripetizioni)×lavoro + (serie × ripetizioni − 1)×pausa
+ * (niente pausa dopo l'ultimo intervallo).
+ */
+export function computeTabataTotalSeconds(
+  workSeconds: number,
+  restSeconds: number,
+  sets: number,
+  reps?: number | null
+): number | null {
+  if (!isTabataTiming(workSeconds, restSeconds, sets)) return null;
+  const intervals = computeTabataIntervals(sets, reps);
+  if (intervals <= 0) return null;
+  return workSeconds * intervals + Math.max(0, restSeconds) * Math.max(0, intervals - 1);
+}
+
+/** Durata in minuti (arrotondati per eccesso, minimo 1) da timing tabata. */
+export function computeTabataDurationMinutes(
+  workSeconds: number,
+  restSeconds: number,
+  sets: number,
+  reps?: number | null
+): number | null {
+  const totalSeconds = computeTabataTotalSeconds(workSeconds, restSeconds, sets, reps);
+  if (totalSeconds == null || totalSeconds <= 0) return null;
+  return Math.max(1, Math.ceil(totalSeconds / 60));
 }

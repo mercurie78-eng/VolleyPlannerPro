@@ -1,5 +1,8 @@
 export const DEFAULT_SESSION_TARGET_MINUTES = 120;
 
+/** Orario di inizio allenamento di default (HH:mm). */
+export const DEFAULT_SESSION_START_TIME = '21:00';
+
 export const CATEGORIES = [
   'Riscaldamento',
   'Pliometria',

@@ -19,10 +19,7 @@ export function sessionItemJumps(
 }
 
 export function stationJumps(station: ParallelStation): number {
-  if (station.sets != null || station.reps != null) {
-    return computeJumps(station.sets, station.reps);
-  }
-  return exerciseJumps(station.exercise);
+  return computeJumps(station.sets, station.reps);
 }
 
 export function weightedSessionItemTeamJumps(

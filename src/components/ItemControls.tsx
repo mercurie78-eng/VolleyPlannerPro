@@ -7,6 +7,9 @@ export interface ItemControlsProps {
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRemove: () => void;
+  /** Se true, la durata è calcolata dal tabata e non è modificabile. */
+  durationLocked?: boolean;
+  durationTitle?: string;
 }
 
 export const ItemControls = memo(function ItemControls({
@@ -15,6 +18,8 @@ export const ItemControls = memo(function ItemControls({
   onMoveUp,
   onMoveDown,
   onRemove,
+  durationLocked = false,
+  durationTitle,
 }: ItemControlsProps) {
   return (
     <div className="flex items-center gap-2 shrink-0">
@@ -24,7 +29,9 @@ export const ItemControls = memo(function ItemControls({
           type="number"
           value={duration}
           onChange={(e) => onDurationChange(e.target.value)}
-          className="w-12 bg-theme-input border border-theme-border text-center text-xs font-bold font-mono text-emerald-400 rounded py-0.5 focus:outline-none focus:border-emerald-500"
+          disabled={durationLocked}
+          title={durationTitle}
+          className={`w-12 bg-theme-input border border-theme-border text-center text-xs font-bold font-mono text-emerald-400 rounded py-0.5 focus:outline-none focus:border-emerald-500 disabled:opacity-70 disabled:cursor-not-allowed`}
         />
         <span className="text-theme-muted-text text-xs">min</span>
       </div>

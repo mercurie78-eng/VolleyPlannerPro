@@ -5,26 +5,27 @@ import type {
   SessionExercise,
   SessionItem,
 } from '../types';
-import { computeSessionTotals, isParallelBlock, toParallelBlock, toSessionExercise } from './session';
+import { computeSessionTotals, isParallelBlock, toParallelBlock, toParallelStation, toSessionExercise } from './session';
 
 export interface StoredSessionExerciseRef {
   type: 'exercise';
   exerciseId: string;
+  /** Carico seduta (non i default del catalogo). */
   sessionDuration: number;
   notes: string;
-  sets?: number;
-  reps?: number;
-  workSeconds?: number;
-  restSeconds?: number;
+  sets: number;
+  reps: number;
+  workSeconds: number;
+  restSeconds: number;
 }
 
 export interface StoredParallelStationRef {
   role: string;
   exerciseId: string;
-  sets?: number;
-  reps?: number;
-  workSeconds?: number;
-  restSeconds?: number;
+  sets: number;
+  reps: number;
+  workSeconds: number;
+  restSeconds: number;
 }
 
 export interface StoredParallelBlockRef {
@@ -46,6 +47,8 @@ type LegacyEmbeddedExercise = {
   notes?: string;
   sets?: number;
   reps?: number;
+  workSeconds?: number;
+  restSeconds?: number;
   isParallelBlock?: boolean;
   parallelTitle?: string;
   stations?: Array<{
@@ -53,6 +56,8 @@ type LegacyEmbeddedExercise = {
     exercise: Exercise;
     sets?: number;
     reps?: number;
+    workSeconds?: number;
+    restSeconds?: number;
   }>;
 };
 
@@ -90,6 +95,13 @@ function buildExerciseLookup(exercises: Exercise[]) {
   };
 }
 
+function resolveLoadNumber(
+  stored: number | undefined,
+  catalogDefault: number
+): number {
+  return stored ?? catalogDefault;
+}
+
 function resolveSessionExerciseRef(
   ref: StoredSessionExerciseRef,
   exercisesById: Map<string, Exercise>
@@ -101,10 +113,10 @@ function resolveSessionExerciseRef(
     exercise,
     ref.sessionDuration,
     ref.notes ?? '',
-    ref.sets ?? exercise.sets,
-    ref.reps ?? exercise.reps,
-    ref.workSeconds ?? exercise.workSeconds,
-    ref.restSeconds ?? exercise.restSeconds
+    resolveLoadNumber(ref.sets, exercise.sets),
+    resolveLoadNumber(ref.reps, exercise.reps),
+    resolveLoadNumber(ref.workSeconds, exercise.workSeconds),
+    resolveLoadNumber(ref.restSeconds, exercise.restSeconds)
   );
 }
 
@@ -122,14 +134,14 @@ function resolveParallelBlockRef(
 
     if (!exercise) continue;
 
-    stations.push({
-      role: stationRef.role,
-      exercise,
-      sets: stationRef.sets,
-      reps: stationRef.reps,
-      workSeconds: stationRef.workSeconds,
-      restSeconds: stationRef.restSeconds,
-    });
+    stations.push(
+      toParallelStation(stationRef.role, exercise, {
+        sets: resolveLoadNumber(stationRef.sets, exercise.sets),
+        reps: resolveLoadNumber(stationRef.reps, exercise.reps),
+        workSeconds: resolveLoadNumber(stationRef.workSeconds, exercise.workSeconds),
+        restSeconds: resolveLoadNumber(stationRef.restSeconds, exercise.restSeconds),
+      })
+    );
   }
 
   if (stations.length === 0) return null;
@@ -152,12 +164,15 @@ function legacyItemToStored(item: LegacyEmbeddedExercise, lookup: ReturnType<typ
             )) ?? null;
 
       if (!exerciseId) continue;
+      const catalog = lookup.byId.get(exerciseId);
 
       stations.push({
         role: station.role,
         exerciseId,
-        sets: station.sets,
-        reps: station.reps,
+        sets: resolveLoadNumber(station.sets, catalog?.sets ?? 0),
+        reps: resolveLoadNumber(station.reps, catalog?.reps ?? 0),
+        workSeconds: resolveLoadNumber(station.workSeconds, catalog?.workSeconds ?? 0),
+        restSeconds: resolveLoadNumber(station.restSeconds, catalog?.restSeconds ?? 0),
       });
     }
 
@@ -174,14 +189,17 @@ function legacyItemToStored(item: LegacyEmbeddedExercise, lookup: ReturnType<typ
 
   const exerciseId = inferExerciseId(item, lookup.byId, lookup.byTitle);
   if (!exerciseId) return null;
+  const catalog = lookup.byId.get(exerciseId);
 
   return {
     type: 'exercise',
     exerciseId,
-    sessionDuration: item.sessionDuration ?? 0,
+    sessionDuration: item.sessionDuration ?? catalog?.durationMin ?? 0,
     notes: item.notes ?? '',
-    sets: item.sets,
-    reps: item.reps,
+    sets: resolveLoadNumber(item.sets, catalog?.sets ?? 0),
+    reps: resolveLoadNumber(item.reps, catalog?.reps ?? 0),
+    workSeconds: resolveLoadNumber(item.workSeconds, catalog?.workSeconds ?? 0),
+    restSeconds: resolveLoadNumber(item.restSeconds, catalog?.restSeconds ?? 0),
   };
 }
 
@@ -194,12 +212,47 @@ export function normalizeStoredSessionItems(raw: unknown, exercises: Exercise[])
     .map((item) => {
       if (!item || typeof item !== 'object') return null;
 
-      const record = item as LegacyEmbeddedExercise & StoredSessionItem;
+      const record = item as LegacyEmbeddedExercise & Partial<StoredSessionItem>;
       if (record.type === 'exercise' && record.exerciseId) {
-        return record as StoredSessionExerciseRef;
+        const catalog = lookup.byId.get(record.exerciseId);
+        return {
+          type: 'exercise' as const,
+          exerciseId: record.exerciseId,
+          sessionDuration: record.sessionDuration ?? catalog?.durationMin ?? 0,
+          notes: record.notes ?? '',
+          sets: resolveLoadNumber(record.sets, catalog?.sets ?? 0),
+          reps: resolveLoadNumber(record.reps, catalog?.reps ?? 0),
+          workSeconds: resolveLoadNumber(record.workSeconds, catalog?.workSeconds ?? 0),
+          restSeconds: resolveLoadNumber(record.restSeconds, catalog?.restSeconds ?? 0),
+        };
       }
       if (record.type === 'parallel' && Array.isArray(record.stations)) {
-        return record as StoredParallelBlockRef;
+        const stations = record.stations as Array<
+          StoredParallelStationRef | NonNullable<LegacyEmbeddedExercise['stations']>[number]
+        >;
+        return {
+          type: 'parallel' as const,
+          parallelTitle: record.parallelTitle ?? 'Stazioni in parallelo',
+          sessionDuration: record.sessionDuration ?? 0,
+          notes: record.notes ?? '',
+          stations: stations.map((station) => {
+            const exerciseId =
+              'exerciseId' in station && station.exerciseId
+                ? station.exerciseId
+                : 'exercise' in station && station.exercise?.id
+                  ? station.exercise.id
+                  : '';
+            const catalog = lookup.byId.get(exerciseId);
+            return {
+              role: station.role,
+              exerciseId,
+              sets: resolveLoadNumber(station.sets, catalog?.sets ?? 0),
+              reps: resolveLoadNumber(station.reps, catalog?.reps ?? 0),
+              workSeconds: resolveLoadNumber(station.workSeconds, catalog?.workSeconds ?? 0),
+              restSeconds: resolveLoadNumber(station.restSeconds, catalog?.restSeconds ?? 0),
+            };
+          }).filter((station) => Boolean(station.exerciseId)),
+        };
       }
 
       return legacyItemToStored(record, lookup);

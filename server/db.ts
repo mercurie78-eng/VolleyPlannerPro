@@ -18,6 +18,7 @@ import {
 } from '../src/utils/sessionStorage.js';
 import { isExerciseIdCoherent, nextExerciseId } from '../src/utils/exerciseId.js';
 import { exerciseImageUrl, findExerciseImageFile, renameExerciseImageFile } from './images.js';
+import { DEFAULT_SESSION_START_TIME } from '../src/data/constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -52,6 +53,7 @@ export function getDb(): Database.Database {
       date TEXT NOT NULL,
       title TEXT NOT NULL,
       focus TEXT NOT NULL,
+      start_time TEXT NOT NULL DEFAULT '21:00',
       target_minutes INTEGER NOT NULL,
       total_minutes INTEGER NOT NULL,
       total_jumps INTEGER NOT NULL,
@@ -85,8 +87,18 @@ export function getDb(): Database.Database {
 
   migrateExercisesSchema(db);
   migratePlayersSchema(db);
+  migrateSavedSessionsSchema(db);
 
   return db;
+}
+
+function migrateSavedSessionsSchema(db: Database.Database): void {
+  const columns = db.prepare('PRAGMA table_info(saved_sessions)').all() as { name: string }[];
+  const columnNames = new Set(columns.map((column) => column.name));
+
+  if (!columnNames.has('start_time')) {
+    db.exec(`ALTER TABLE saved_sessions ADD COLUMN start_time TEXT NOT NULL DEFAULT '21:00'`);
+  }
 }
 
 function migrateExercisesSchema(db: Database.Database): void {
@@ -297,6 +309,7 @@ interface SavedSessionRow {
   date: string;
   title: string;
   focus: string;
+  start_time: string | null;
   target_minutes: number;
   total_minutes: number;
   total_jumps: number;
@@ -312,6 +325,7 @@ function rowToSavedSession(row: SavedSessionRow, db: Database.Database): SavedSe
     date: row.date,
     title: row.title,
     focus: row.focus,
+    startTime: row.start_time || DEFAULT_SESSION_START_TIME,
     targetMinutes: row.target_minutes,
     totalMinutes: row.total_minutes,
     totalJumps: row.total_jumps,
@@ -336,16 +350,20 @@ export function getSavedSessionById(db: Database.Database, id: string): SavedSes
 }
 
 export function insertSavedSession(db: Database.Database, session: SavedSession): SavedSession {
-  const hydrated = hydrateSavedSessionTotals(session);
+  const hydrated = hydrateSavedSessionTotals({
+    ...session,
+    startTime: session.startTime || DEFAULT_SESSION_START_TIME,
+  });
 
   db.prepare(`
-    INSERT INTO saved_sessions (id, date, title, focus, target_minutes, total_minutes, total_jumps, items)
-    VALUES (@id, @date, @title, @focus, @targetMinutes, @totalMinutes, @totalJumps, @items)
+    INSERT INTO saved_sessions (id, date, title, focus, start_time, target_minutes, total_minutes, total_jumps, items)
+    VALUES (@id, @date, @title, @focus, @startTime, @targetMinutes, @totalMinutes, @totalJumps, @items)
   `).run({
     id: hydrated.id,
     date: hydrated.date,
     title: hydrated.title,
     focus: hydrated.focus,
+    startTime: hydrated.startTime,
     targetMinutes: hydrated.targetMinutes,
     totalMinutes: hydrated.totalMinutes,
     totalJumps: hydrated.totalJumps,
@@ -356,13 +374,17 @@ export function insertSavedSession(db: Database.Database, session: SavedSession)
 }
 
 export function updateSavedSession(db: Database.Database, session: SavedSession): SavedSession | undefined {
-  const hydrated = hydrateSavedSessionTotals(session);
+  const hydrated = hydrateSavedSessionTotals({
+    ...session,
+    startTime: session.startTime || DEFAULT_SESSION_START_TIME,
+  });
 
   const result = db.prepare(`
     UPDATE saved_sessions SET
       date = @date,
       title = @title,
       focus = @focus,
+      start_time = @startTime,
       target_minutes = @targetMinutes,
       total_minutes = @totalMinutes,
       total_jumps = @totalJumps,
@@ -373,6 +395,7 @@ export function updateSavedSession(db: Database.Database, session: SavedSession)
     date: hydrated.date,
     title: hydrated.title,
     focus: hydrated.focus,
+    startTime: hydrated.startTime,
     targetMinutes: hydrated.targetMinutes,
     totalMinutes: hydrated.totalMinutes,
     totalJumps: hydrated.totalJumps,

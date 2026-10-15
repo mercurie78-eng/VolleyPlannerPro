@@ -5,7 +5,7 @@ import { BuilderTab } from './components/tabs/BuilderTab';
 import { SavedTab } from './components/tabs/SavedTab';
 import { DatabaseTab } from './components/tabs/DatabaseTab';
 import { PrintTab } from './components/tabs/PrintTab';
-import { DEFAULT_SESSION_TARGET_MINUTES, isAnalyticCategory } from './data/constants';
+import { DEFAULT_SESSION_START_TIME, DEFAULT_SESSION_TARGET_MINUTES, isAnalyticCategory } from './data/constants';
 import { buildPresetK1, buildPresetK2 } from './data/presets';
 import { useExercises } from './hooks/useExercises';
 import { usePlayers } from './hooks/usePlayers';
@@ -20,9 +20,12 @@ import {
   moveSessionItem,
   suggestExerciseRole,
   toParallelBlock,
+  toParallelStation,
   toSessionExercise,
   updateSessionAtIndex,
   withFreshSessionIds,
+  withSyncedTabataDuration,
+  applyCatalogContentToSessionItem,
 } from './utils/session';
 import { findSavedSessionByIdentity, normalizeSessionTitle, duplicateSavedSession } from './utils/savedSession';
 import type { Exercise, ParallelStation, SavedSession, SessionItem, TabId } from './types';
@@ -36,6 +39,7 @@ export default function App() {
   const [sessionTitle, setSessionTitle] = useState('');
   const [sessionFocus, setSessionFocus] = useState('');
   const [sessionTargetMinutes, setSessionTargetMinutes] = useState(DEFAULT_SESSION_TARGET_MINUTES);
+  const [sessionStartTime, setSessionStartTime] = useState(DEFAULT_SESSION_START_TIME);
 
   const { exercises, loading: exercisesLoading, error: exercisesError, saveExercise, deleteExercise, reload: reloadExercises } = useExercises();
   const { savedSessions, loading: sessionsLoading, error: sessionsError, saveSession, updateSession, deleteSession, reload: reloadSessions } = useSavedSessions();
@@ -98,32 +102,54 @@ export default function App() {
     toastTimeoutRef.current = setTimeout(() => setSaveToast(false), 3000);
   }, []);
 
-  const handleSaveCurrentSession = useCallback(async () => {
-    const title = normalizeSessionTitle(sessionTitle);
-    const payload: SavedSession = {
-      id: `saved-${Date.now()}`,
+  const buildSessionPayload = useCallback(
+    (id: string): SavedSession => ({
+      id,
       date: sessionDate,
-      title,
+      title: normalizeSessionTitle(sessionTitle),
       focus: sessionFocus || 'Nessun focus specificato',
+      startTime: sessionStartTime || DEFAULT_SESSION_START_TIME,
       targetMinutes: sessionTargetMinutes,
       totalMinutes,
       totalJumps,
       items: cloneSession(session),
-    };
-
-    const existing = findSavedSessionByIdentity(
-      savedSessions,
-      title,
+    }),
+    [
       sessionDate,
-      loadedSavedSessionId
-    );
+      sessionTitle,
+      sessionFocus,
+      sessionStartTime,
+      sessionTargetMinutes,
+      totalMinutes,
+      totalJumps,
+      session,
+    ]
+  );
 
+  const confirmOverwriteByIdentity = useCallback(
+    (title: string, date: string) =>
+      window.confirm(
+        `Esiste già un allenamento "${title}" del ${date}.\n\nVuoi sovrascriverlo?`
+      ),
+    []
+  );
+
+  /** Salva: sovrascrive l'allenamento caricato, oppure crea/sovrascrive per titolo+data. */
+  const handleSaveCurrentSession = useCallback(async () => {
+    if (loadedSavedSessionId) {
+      const loaded = savedSessions.find((s) => s.id === loadedSavedSessionId);
+      if (loaded) {
+        await updateSession(buildSessionPayload(loadedSavedSessionId));
+        showSaveToast();
+        return;
+      }
+      setLoadedSavedSessionId(null);
+    }
+
+    const payload = buildSessionPayload(`saved-${Date.now()}`);
+    const existing = findSavedSessionByIdentity(savedSessions, payload.title, payload.date);
     if (existing) {
-      const overwrite = window.confirm(
-        `Esiste già un allenamento "${title}" del ${sessionDate}.\n\nVuoi sovrascrivere il salvataggio precedente?`
-      );
-      if (!overwrite) return;
-
+      if (!confirmOverwriteByIdentity(payload.title, payload.date)) return;
       await updateSession({ ...payload, id: existing.id });
       setLoadedSavedSessionId(existing.id);
       showSaveToast();
@@ -134,15 +160,35 @@ export default function App() {
     setLoadedSavedSessionId(saved.id);
     showSaveToast();
   }, [
-    sessionDate,
-    sessionTitle,
-    sessionFocus,
-    sessionTargetMinutes,
-    totalMinutes,
-    totalJumps,
-    session,
-    savedSessions,
+    buildSessionPayload,
     loadedSavedSessionId,
+    savedSessions,
+    confirmOverwriteByIdentity,
+    saveSession,
+    updateSession,
+    showSaveToast,
+  ]);
+
+  /** Salva come: crea sempre un nuovo allenamento (con conferma se titolo+data già esistono). */
+  const handleSaveSessionAs = useCallback(async () => {
+    const payload = buildSessionPayload(`saved-${Date.now()}`);
+    const existing = findSavedSessionByIdentity(savedSessions, payload.title, payload.date);
+
+    if (existing) {
+      if (!confirmOverwriteByIdentity(payload.title, payload.date)) return;
+      await updateSession({ ...payload, id: existing.id });
+      setLoadedSavedSessionId(existing.id);
+      showSaveToast();
+      return;
+    }
+
+    const saved = await saveSession(payload);
+    setLoadedSavedSessionId(saved.id);
+    showSaveToast();
+  }, [
+    buildSessionPayload,
+    savedSessions,
+    confirmOverwriteByIdentity,
     saveSession,
     updateSession,
     showSaveToast,
@@ -152,6 +198,7 @@ export default function App() {
     setSessionTitle(savedItem.title);
     setSessionFocus(savedItem.focus);
     setSessionDate(savedItem.date);
+    setSessionStartTime(savedItem.startTime || DEFAULT_SESSION_START_TIME);
     setSessionTargetMinutes(savedItem.targetMinutes ?? DEFAULT_SESSION_TARGET_MINUTES);
     setSession(withFreshSessionIds(cloneSession(savedItem.items)));
     setLoadedSavedSessionId(savedItem.id);
@@ -162,6 +209,7 @@ export default function App() {
     setSessionTitle('');
     setSessionFocus('');
     setSessionDate(new Date().toISOString().split('T')[0]);
+    setSessionStartTime(DEFAULT_SESSION_START_TIME);
     setSessionTargetMinutes(DEFAULT_SESSION_TARGET_MINUTES);
     setSession([]);
     setLoadedSavedSessionId(null);
@@ -202,14 +250,7 @@ export default function App() {
             if (!isParallelBlock(block)) return block;
             return {
               ...block,
-              stations: [...block.stations, {
-                role: newRole,
-                exercise: ex,
-                sets: ex.sets,
-                reps: ex.reps,
-                workSeconds: ex.workSeconds,
-                restSeconds: ex.restSeconds,
-              }],
+              stations: [...block.stations, toParallelStation(newRole, ex)],
             };
           });
         }
@@ -219,7 +260,7 @@ export default function App() {
         const parallelBlock = convertSessionExerciseToParallelBlock(
           item,
           existingRole?.trim() || suggestExerciseRole(item),
-          { role: newRole, exercise: ex }
+          toParallelStation(newRole, ex)
         );
 
         return prev.map((sessionItem, index) => (index === targetIndex ? parallelBlock : sessionItem));
@@ -270,8 +311,8 @@ export default function App() {
     const sets = val === '' ? 0 : parseInt(val, 10) || 0;
     setSession((prev) =>
       updateSessionAtIndex(prev, index, (item) => {
-        if ('isParallelBlock' in item) return item;
-        return { ...item, sets };
+        if (!isSessionExercise(item)) return item;
+        return withSyncedTabataDuration({ ...item, sets });
       })
     );
   }, []);
@@ -280,8 +321,8 @@ export default function App() {
     const reps = val === '' ? 0 : parseInt(val, 10) || 0;
     setSession((prev) =>
       updateSessionAtIndex(prev, index, (item) => {
-        if ('isParallelBlock' in item) return item;
-        return { ...item, reps };
+        if (!isSessionExercise(item)) return item;
+        return withSyncedTabataDuration({ ...item, reps });
       })
     );
   }, []);
@@ -290,8 +331,8 @@ export default function App() {
     const workSeconds = val === '' ? 0 : parseInt(val, 10) || 0;
     setSession((prev) =>
       updateSessionAtIndex(prev, index, (item) => {
-        if ('isParallelBlock' in item) return item;
-        return { ...item, workSeconds };
+        if (!isSessionExercise(item)) return item;
+        return withSyncedTabataDuration({ ...item, workSeconds });
       })
     );
   }, []);
@@ -300,15 +341,15 @@ export default function App() {
     const restSeconds = val === '' ? 0 : parseInt(val, 10) || 0;
     setSession((prev) =>
       updateSessionAtIndex(prev, index, (item) => {
-        if ('isParallelBlock' in item) return item;
-        return { ...item, restSeconds };
+        if (!isSessionExercise(item)) return item;
+        return withSyncedTabataDuration({ ...item, restSeconds });
       })
     );
   }, []);
 
   const handleParallelStationSetsChange = useCallback(
     (blockIndex: number, stationIndex: number, val: string) => {
-      const sets = val === '' ? undefined : parseInt(val, 10) || 0;
+      const sets = val === '' ? 0 : parseInt(val, 10) || 0;
       setSession((prev) =>
         updateSessionAtIndex(prev, blockIndex, (item) => {
           if (!isParallelBlock(item)) return item;
@@ -343,7 +384,7 @@ export default function App() {
 
   const handleParallelStationRepsChange = useCallback(
     (blockIndex: number, stationIndex: number, val: string) => {
-      const reps = val === '' ? undefined : parseInt(val, 10) || 0;
+      const reps = val === '' ? 0 : parseInt(val, 10) || 0;
       setSession((prev) =>
         updateSessionAtIndex(prev, blockIndex, (item) => {
           if (!isParallelBlock(item)) return item;
@@ -361,7 +402,7 @@ export default function App() {
 
   const handleParallelStationWorkSecondsChange = useCallback(
     (blockIndex: number, stationIndex: number, val: string) => {
-      const workSeconds = val === '' ? undefined : parseInt(val, 10) || 0;
+      const workSeconds = val === '' ? 0 : parseInt(val, 10) || 0;
       setSession((prev) =>
         updateSessionAtIndex(prev, blockIndex, (item) => {
           if (!isParallelBlock(item)) return item;
@@ -379,7 +420,7 @@ export default function App() {
 
   const handleParallelStationRestSecondsChange = useCallback(
     (blockIndex: number, stationIndex: number, val: string) => {
-      const restSeconds = val === '' ? undefined : parseInt(val, 10) || 0;
+      const restSeconds = val === '' ? 0 : parseInt(val, 10) || 0;
       setSession((prev) =>
         updateSessionAtIndex(prev, blockIndex, (item) => {
           if (!isParallelBlock(item)) return item;
@@ -413,6 +454,8 @@ export default function App() {
 
   const handleSaveExercise = useCallback(async (exercise: Exercise, options?: SaveExerciseOptions) => {
     await saveExercise(exercise, options);
+    // Aggiorna solo il contenuto catalogo nella seduta aperta: il carico resta quello della seduta
+    setSession((prev) => prev.map((item) => applyCatalogContentToSessionItem(item, exercise)));
     await reloadSessions();
   }, [saveExercise, reloadSessions]);
 
@@ -464,8 +507,12 @@ export default function App() {
             sessionTitle={sessionTitle}
             sessionFocus={sessionFocus}
             sessionDate={sessionDate}
+            sessionStartTime={sessionStartTime}
             sessionTargetMinutes={sessionTargetMinutes}
             saveToast={saveToast}
+            canOverwriteLoadedSession={Boolean(
+              loadedSavedSessionId && savedSessions.some((s) => s.id === loadedSavedSessionId)
+            )}
             totalMinutes={totalMinutes}
             totalJumps={totalJumps}
             session={session}
@@ -478,8 +525,10 @@ export default function App() {
             onSessionTitleChange={setSessionTitle}
             onSessionFocusChange={setSessionFocus}
             onSessionDateChange={setSessionDate}
+            onSessionStartTimeChange={setSessionStartTime}
             onSessionTargetMinutesChange={setSessionTargetMinutes}
             onSave={handleSaveCurrentSession}
+            onSaveAs={handleSaveSessionAs}
             onGeneratePreset={handleGeneratePreset}
             onDurationChange={handleDurationChange}
             onSetsChange={handleSetsChange}
@@ -547,6 +596,7 @@ export default function App() {
             sessionTitle={sessionTitle}
             sessionFocus={sessionFocus}
             sessionDate={sessionDate}
+            sessionStartTime={sessionStartTime}
             sessionTargetMinutes={sessionTargetMinutes}
             totalMinutes={totalMinutes}
             totalJumps={totalJumps}

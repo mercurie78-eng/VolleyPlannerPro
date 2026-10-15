@@ -7,6 +7,11 @@ import { ExerciseImage } from './ExerciseImage';
 import { RoleMultiSelect } from './RoleMultiSelect';
 import type { TacticalSceneData } from '../types';
 import { exerciseJumps } from '../utils/jumps';
+import {
+  computeTabataDurationMinutes,
+  computeTabataTotalSeconds,
+  isTabataTiming,
+} from '../utils/tabata';
 import { nextExerciseId } from '../utils/exerciseId';
 import type { SaveExerciseOptions } from '../api/exercises';
 import type { Exercise } from '../types';
@@ -147,6 +152,25 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
   const canEditTacticalImage = Boolean(activeTacticalData);
   const imageCreatorInitialScene =
     imageCreatorMode === 'edit' ? activeTacticalData : null;
+
+  const tabataMinutes = computeTabataDurationMinutes(
+    form.workSeconds,
+    form.restSeconds,
+    form.sets,
+    form.reps
+  );
+  const tabataSeconds = computeTabataTotalSeconds(
+    form.workSeconds,
+    form.restSeconds,
+    form.sets,
+    form.reps
+  );
+  const durationFromTabata = isTabataTiming(form.workSeconds, form.restSeconds, form.sets);
+
+  useEffect(() => {
+    if (tabataMinutes == null) return;
+    setForm((prev) => (prev.durationMin === tabataMinutes ? prev : { ...prev, durationMin: tabataMinutes }));
+  }, [tabataMinutes]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-theme-overlay/80 backdrop-blur-sm">
@@ -295,22 +319,39 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
             />
           </div>
 
+          <div className="rounded-xl border border-theme-border bg-theme-elevated/50 px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-theme-subtle">
+              Valori predefiniti
+            </p>
+            <p className="text-[11px] text-theme-muted-text mt-0.5">
+              Usati solo all&apos;aggiunta in un allenamento. Ogni seduta salva poi durata, serie e ripetizioni proprie.
+            </p>
+          </div>
+
           <div>
-            <label className={labelClass}>Durata (min)</label>
+            <label className={labelClass}>
+              Durata predefinita (min){durationFromTabata ? ' · auto da tabata' : ''}
+            </label>
             <input
               type="number"
               min={1}
               value={form.durationMin}
+              disabled={durationFromTabata}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, durationMin: parseInt(e.target.value, 10) || 0 }))
               }
-              className={inputClass}
+              className={`${inputClass} disabled:opacity-70 disabled:cursor-not-allowed`}
+              title={
+                durationFromTabata && tabataSeconds != null
+                  ? `Calcolato: ${form.sets} serie × ${Math.max(1, form.reps)} rip. (lavoro/pausa) = ${tabataSeconds}s`
+                  : undefined
+              }
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelClass}>Serie</label>
+              <label className={labelClass}>Serie predefinite</label>
               <input
                 type="number"
                 min={0}
@@ -322,7 +363,7 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
               />
             </div>
             <div>
-              <label className={labelClass}>Ripetizioni</label>
+              <label className={labelClass}>Ripetizioni predefinite</label>
               <input
                 type="number"
                 min={0}
@@ -334,7 +375,7 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
               />
             </div>
             <div>
-              <label className={labelClass}>Lavoro (sec)</label>
+              <label className={labelClass}>Lavoro predefinito (sec)</label>
               <input
                 type="number"
                 min={0}
@@ -347,7 +388,7 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
               />
             </div>
             <div>
-              <label className={labelClass}>Pausa (sec)</label>
+              <label className={labelClass}>Pausa predefinita (sec)</label>
               <input
                 type="number"
                 min={0}
@@ -363,8 +404,8 @@ export function ExerciseFormModal({ exercise, existingExerciseIds, onSave, onClo
 
           <p className="text-xs text-purple-400 font-mono">
             Salti stimati: {exerciseJumps(form)} ({form.sets} × {form.reps})
-            {form.workSeconds > 0 || form.restSeconds > 0
-              ? ` · Tabata: ${form.sets > 0 ? `${form.sets}× ` : ''}(${form.workSeconds}s / ${form.restSeconds}s)`
+            {durationFromTabata && tabataSeconds != null
+              ? ` · Tabata: ${form.sets}×${Math.max(1, form.reps)} (${form.workSeconds}s / ${form.restSeconds}s) = ${tabataSeconds}s → ${tabataMinutes} min`
               : ''}
           </p>
 

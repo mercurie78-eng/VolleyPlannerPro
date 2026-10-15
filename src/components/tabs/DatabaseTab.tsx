@@ -160,9 +160,9 @@ export function DatabaseTab({
                   {ex.exerciseType && <ExerciseTypeBadge exerciseType={ex.exerciseType} />}
                   <span className="text-xs font-mono text-purple-400 ml-auto">~{exerciseJumps(ex)} salti ({ex.sets}×{ex.reps})</span>
                 </div>
-                {formatWorkRestLabel(ex.workSeconds, ex.restSeconds, ex.sets) && (
+                {formatWorkRestLabel(ex.workSeconds, ex.restSeconds, ex.sets, ex.reps) && (
                   <p className="text-[10px] font-mono text-cyan-400">
-                    Tabata: {formatWorkRestLabel(ex.workSeconds, ex.restSeconds, ex.sets)}
+                    Tabata: {formatWorkRestLabel(ex.workSeconds, ex.restSeconds, ex.sets, ex.reps)}
                   </p>
                 )}
 

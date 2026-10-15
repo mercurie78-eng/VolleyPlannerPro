@@ -7,15 +7,21 @@ export interface Exercise {
   /** Sottotipologia per Tecnica Analitica (es. Fondamentale tecnico, Situazionale). */
   exerciseType?: string | null;
   targetRoles: string[];
+  /**
+   * Durata predefinita (minuti) usata solo all'aggiunta in un allenamento.
+   * In seduta vale `sessionDuration` della voce.
+   */
   durationMin: number;
   intensity: string;
   description: string;
   coachingPoints: string[];
+  /** Serie predefinite (init in allenamento). */
   sets: number;
+  /** Ripetizioni predefinite (init in allenamento). */
   reps: number;
-  /** Durata lavoro per round tabata (secondi). */
+  /** Durata lavoro tabata predefinita (secondi). */
   workSeconds: number;
-  /** Durata pausa tra i round tabata (secondi). */
+  /** Durata pausa tabata predefinita (secondi). */
   restSeconds: number;
   imageUrl?: string | null;
   /** Stato dell'editor tattico (giocatori, frecce, zoom) per modifiche successive. */
@@ -24,18 +30,25 @@ export interface Exercise {
 
 export type { TacticalSceneData } from '../tactical-court/sceneState';
 
+/** Carico della stazione in questa seduta (indipendente dal catalogo). */
 export interface ParallelStation {
   role: string;
   exercise: Exercise;
-  sets?: number;
-  reps?: number;
-  workSeconds?: number;
-  restSeconds?: number;
+  sets: number;
+  reps: number;
+  workSeconds: number;
+  restSeconds: number;
 }
 
+/**
+ * Esercizio nella seduta: contenuto da catalogo + carico proprio della seduta.
+ * `sets` / `reps` / `workSeconds` / `restSeconds` / `sessionDuration` sono dell'allenamento,
+ * inizializzati dai default del catalogo e poi indipendenti.
+ */
 export interface SessionExercise extends Exercise {
   /** ID dell'esercizio nel catalogo (persistenza allenamenti). */
   exerciseId: string;
+  /** Durata in questa seduta (minuti). */
   sessionDuration: number;
   notes: string;
 }
@@ -56,6 +69,8 @@ export interface SavedSession {
   date: string;
   title: string;
   focus: string;
+  /** Orario di inizio allenamento (HH:mm). */
+  startTime: string;
   targetMinutes: number;
   totalMinutes: number;
   totalJumps: number;
